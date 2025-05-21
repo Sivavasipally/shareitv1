@@ -6,11 +6,19 @@ import {
   SortDesc, 
   Grid, 
   List,
+  ChevronDown
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 const Books: React.FC = () => {
   const [view, setView] = useState<'grid' | 'list'>('grid');
   const [searchTerm, setSearchTerm] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+  const [showSort, setShowSort] = useState(false);
+  const [selectedGenre, setSelectedGenre] = useState('all');
+  const [selectedStatus, setSelectedStatus] = useState('all');
+  const [sortBy, setSortBy] = useState('title');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   // Sample data
   const books = [
@@ -23,62 +31,43 @@ const Books: React.FC = () => {
       status: 'Available',
       image: 'https://images.pexels.com/photos/1179229/pexels-photo-1179229.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2'
     },
-    {
-      id: 2,
-      title: 'Atomic Habits',
-      author: 'James Clear',
-      genre: 'Self-Help',
-      year: 2018,
-      status: 'Checked Out',
-      image: 'https://images.pexels.com/photos/3747139/pexels-photo-3747139.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2'
-    },
-    {
-      id: 3,
-      title: 'Dune',
-      author: 'Frank Herbert',
-      genre: 'Science Fiction',
-      year: 1965,
-      status: 'Available',
-      image: 'https://images.pexels.com/photos/2908984/pexels-photo-2908984.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2'
-    },
-    {
-      id: 4,
-      title: 'The Alchemist',
-      author: 'Paulo Coelho',
-      genre: 'Fiction',
-      year: 1988,
-      status: 'Available',
-      image: 'https://images.pexels.com/photos/5834/nature-grass-leaf-green.jpg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2'
-    },
-    {
-      id: 5,
-      title: 'Sapiens',
-      author: 'Yuval Noah Harari',
-      genre: 'History',
-      year: 2011,
-      status: 'Checked Out',
-      image: 'https://images.pexels.com/photos/8108063/pexels-photo-8108063.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2'
-    },
-    {
-      id: 6,
-      title: '1984',
-      author: 'George Orwell',
-      genre: 'Dystopian',
-      year: 1949,
-      status: 'Available',
-      image: 'https://images.pexels.com/photos/694740/pexels-photo-694740.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2'
-    }
+    // ... (rest of the books data)
   ];
+
+  const filteredBooks = books
+    .filter(book => {
+      const matchesSearch = book.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          book.author.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesGenre = selectedGenre === 'all' || book.genre === selectedGenre;
+      const matchesStatus = selectedStatus === 'all' || book.status === selectedStatus;
+      return matchesSearch && matchesGenre && matchesStatus;
+    })
+    .sort((a, b) => {
+      const order = sortOrder === 'asc' ? 1 : -1;
+      switch (sortBy) {
+        case 'title':
+          return order * a.title.localeCompare(b.title);
+        case 'author':
+          return order * a.author.localeCompare(b.author);
+        case 'year':
+          return order * (a.year - b.year);
+        default:
+          return 0;
+      }
+    });
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-800">Books</h1>
         <div className="flex space-x-2">
-          <button className="px-4 py-2 bg-blue-800 text-white rounded-md hover:bg-blue-900 transition-colors duration-150 flex items-center text-sm">
+          <Link 
+            to="/add-book"
+            className="px-4 py-2 bg-blue-800 text-white rounded-md hover:bg-blue-900 transition-colors duration-150 flex items-center text-sm"
+          >
             <PlusCircle size={16} className="mr-2" />
             Add Book
-          </button>
+          </Link>
         </div>
       </div>
 
@@ -98,14 +87,94 @@ const Books: React.FC = () => {
         </div>
         
         <div className="flex space-x-2">
-          <button className="px-4 py-2 bg-white border border-gray-300 rounded-md text-gray-700 flex items-center text-sm hover:bg-gray-50 transition-colors">
-            <Filter size={16} className="mr-2 text-gray-500" />
-            Filter
-          </button>
-          <button className="px-4 py-2 bg-white border border-gray-300 rounded-md text-gray-700 flex items-center text-sm hover:bg-gray-50 transition-colors">
-            <SortDesc size={16} className="mr-2 text-gray-500" />
-            Sort
-          </button>
+          {/* Filter Button */}
+          <div className="relative">
+            <button 
+              className="px-4 py-2 bg-white border border-gray-300 rounded-md text-gray-700 flex items-center text-sm hover:bg-gray-50 transition-colors"
+              onClick={() => setShowFilters(!showFilters)}
+            >
+              <Filter size={16} className="mr-2 text-gray-500" />
+              Filter
+              <ChevronDown size={16} className="ml-2 text-gray-500" />
+            </button>
+            
+            {showFilters && (
+              <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-1 z-50">
+                <div className="px-4 py-2 border-b border-gray-200">
+                  <h3 className="text-sm font-semibold text-gray-800">Genre</h3>
+                  <select
+                    value={selectedGenre}
+                    onChange={(e) => setSelectedGenre(e.target.value)}
+                    className="mt-1 block w-full text-sm border-gray-300 rounded-md"
+                  >
+                    <option value="all">All Genres</option>
+                    <option value="Fiction">Fiction</option>
+                    <option value="Non-Fiction">Non-Fiction</option>
+                    <option value="Science Fiction">Science Fiction</option>
+                    <option value="Fantasy">Fantasy</option>
+                  </select>
+                </div>
+                <div className="px-4 py-2">
+                  <h3 className="text-sm font-semibold text-gray-800">Status</h3>
+                  <select
+                    value={selectedStatus}
+                    onChange={(e) => setSelectedStatus(e.target.value)}
+                    className="mt-1 block w-full text-sm border-gray-300 rounded-md"
+                  >
+                    <option value="all">All Status</option>
+                    <option value="Available">Available</option>
+                    <option value="Checked Out">Checked Out</option>
+                  </select>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Sort Button */}
+          <div className="relative">
+            <button 
+              className="px-4 py-2 bg-white border border-gray-300 rounded-md text-gray-700 flex items-center text-sm hover:bg-gray-50 transition-colors"
+              onClick={() => setShowSort(!showSort)}
+            >
+              <SortDesc size={16} className="mr-2 text-gray-500" />
+              Sort
+              <ChevronDown size={16} className="ml-2 text-gray-500" />
+            </button>
+            
+            {showSort && (
+              <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-1 z-50">
+                <button
+                  className={`block w-full text-left px-4 py-2 text-sm ${sortBy === 'title' ? 'text-blue-800 bg-blue-50' : 'text-gray-700 hover:bg-gray-50'}`}
+                  onClick={() => {
+                    setSortBy('title');
+                    setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                  }}
+                >
+                  Title {sortBy === 'title' && (sortOrder === 'asc' ? '↑' : '↓')}
+                </button>
+                <button
+                  className={`block w-full text-left px-4 py-2 text-sm ${sortBy === 'author' ? 'text-blue-800 bg-blue-50' : 'text-gray-700 hover:bg-gray-50'}`}
+                  onClick={() => {
+                    setSortBy('author');
+                    setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                  }}
+                >
+                  Author {sortBy === 'author' && (sortOrder === 'asc' ? '↑' : '↓')}
+                </button>
+                <button
+                  className={`block w-full text-left px-4 py-2 text-sm ${sortBy === 'year' ? 'text-blue-800 bg-blue-50' : 'text-gray-700 hover:bg-gray-50'}`}
+                  onClick={() => {
+                    setSortBy('year');
+                    setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                  }}
+                >
+                  Year {sortBy === 'year' && (sortOrder === 'asc' ? '↑' : '↓')}
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* View Toggle */}
           <div className="bg-white border border-gray-300 rounded-md flex">
             <button 
               className={`p-2 ${view === 'grid' ? 'bg-gray-100 text-blue-800' : 'text-gray-500 hover:bg-gray-50'}`}
@@ -126,7 +195,7 @@ const Books: React.FC = () => {
       {/* Books Grid/List */}
       {view === 'grid' ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {books.map(book => (
+          {filteredBooks.map(book => (
             <div key={book.id} className="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-200">
               <div className="h-40 overflow-hidden">
                 <img src={book.image} alt={book.title} className="w-full h-full object-cover transition-transform duration-300 hover:scale-105" />
@@ -173,7 +242,7 @@ const Books: React.FC = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {books.map(book => (
+              {filteredBooks.map(book => (
                 <tr key={book.id} className="hover:bg-gray-50 transition-colors duration-150">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">

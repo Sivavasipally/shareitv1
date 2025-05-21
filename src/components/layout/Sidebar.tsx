@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, Link } from 'react-router-dom';
 import { LayoutDashboard, BookOpen, Dice1 as Dice, LogOut, PlusCircle, CheckSquare, Bell } from 'lucide-react';
 
 const Sidebar: React.FC = () => {
@@ -34,10 +34,10 @@ const Sidebar: React.FC = () => {
       
       {/* Logout */}
       <div className="p-4 border-t border-gray-200">
-        <button className="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100 w-full transition-colors duration-150">
+        <Link to="/login" className="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100 w-full transition-colors duration-150">
           <LogOut size={20} className="mr-3 text-gray-500" />
           Logout
-        </button>
+        </Link>
       </div>
     </div>
   );

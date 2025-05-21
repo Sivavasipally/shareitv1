@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { BookOpen, Dice1 as Dice, CheckSquare, Bell, PlusCircle, TrendingUp, Users, Clock } from 'lucide-react';
 import StatCard from '../components/dashboard/StatCard';
 import RecentItem from '../components/dashboard/RecentItem';
@@ -10,10 +11,26 @@ const Dashboard: React.FC = () => {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
         <div className="flex space-x-2">
-          <button className="px-4 py-2 bg-blue-800 text-white rounded-md hover:bg-blue-900 transition-colors duration-150 flex items-center text-sm">
-            <PlusCircle size={16} className="mr-2" />
-            Add New Item
-          </button>
+          <div className="dropdown relative">
+            <button className="px-4 py-2 bg-blue-800 text-white rounded-md hover:bg-blue-900 transition-colors duration-150 flex items-center text-sm">
+              <PlusCircle size={16} className="mr-2" />
+              Add New Item
+            </button>
+            <div className="dropdown-menu absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 hidden group-hover:block">
+              <Link 
+                to="/add-book" 
+                className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              >
+                Add Book
+              </Link>
+              <Link 
+                to="/add-board-game" 
+                className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              >
+                Add Board Game
+              </Link>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -55,7 +72,7 @@ const Dashboard: React.FC = () => {
         <div className="bg-white rounded-lg shadow-sm p-6 col-span-1">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-gray-800">Recent Books</h2>
-            <a href="/books" className="text-sm text-blue-700 hover:text-blue-900 hover:underline transition-colors">View all</a>
+            <Link to="/books" className="text-sm text-blue-700 hover:text-blue-900 hover:underline transition-colors">View all</Link>
           </div>
           <div className="space-y-4">
             <RecentItem 
@@ -83,7 +100,7 @@ const Dashboard: React.FC = () => {
         <div className="bg-white rounded-lg shadow-sm p-6 col-span-1">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-gray-800">Recent Board Games</h2>
-            <a href="/board-games" className="text-sm text-blue-700 hover:text-blue-900 hover:underline transition-colors">View all</a>
+            <Link to="/board-games" className="text-sm text-blue-700 hover:text-blue-900 hover:underline transition-colors">View all</Link>
           </div>
           <div className="space-y-4">
             <RecentItem 
@@ -111,7 +128,7 @@ const Dashboard: React.FC = () => {
         <div className="bg-white rounded-lg shadow-sm p-6 col-span-1">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-gray-800">Recent Activity</h2>
-            <button className="text-sm text-blue-700 hover:text-blue-900 hover:underline transition-colors">View all</button>
+            <Link to="/activity" className="text-sm text-blue-700 hover:text-blue-900 hover:underline transition-colors">View all</Link>
           </div>
           <div className="space-y-4">
             <ActivityItem 

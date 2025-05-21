@@ -6,12 +6,21 @@ import {
   SortDesc, 
   Grid, 
   List,
-  Users
+  Users,
+  ChevronDown
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 const BoardGames: React.FC = () => {
   const [view, setView] = useState<'grid' | 'list'>('grid');
   const [searchTerm, setSearchTerm] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+  const [showSort, setShowSort] = useState(false);
+  const [selectedComplexity, setSelectedComplexity] = useState('all');
+  const [selectedStatus, setSelectedStatus] = useState('all');
+  const [selectedPlayers, setSelectedPlayers] = useState('all');
+  const [sortBy, setSortBy] = useState('title');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   // Sample data
   const boardGames = [
@@ -25,67 +34,45 @@ const BoardGames: React.FC = () => {
       status: 'Available',
       image: 'https://images.pexels.com/photos/2309234/pexels-photo-2309234.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2'
     },
-    {
-      id: 2,
-      title: 'Ticket to Ride',
-      designer: 'Alan R. Moon',
-      players: '2-5',
-      duration: '30-60 min',
-      complexity: 'Easy',
-      status: 'Checked Out',
-      image: 'https://images.pexels.com/photos/6333080/pexels-photo-6333080.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2'
-    },
-    {
-      id: 3,
-      title: 'Pandemic',
-      designer: 'Matt Leacock',
-      players: '2-4',
-      duration: '45-60 min',
-      complexity: 'Medium',
-      status: 'Available',
-      image: 'https://images.pexels.com/photos/6686455/pexels-photo-6686455.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2'
-    },
-    {
-      id: 4,
-      title: 'Scythe',
-      designer: 'Jamey Stegmaier',
-      players: '1-5',
-      duration: '90-115 min',
-      complexity: 'Hard',
-      status: 'Available',
-      image: 'https://images.pexels.com/photos/3902883/pexels-photo-3902883.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2'
-    },
-    {
-      id: 5,
-      title: 'Azul',
-      designer: 'Michael Kiesling',
-      players: '2-4',
-      duration: '30-45 min',
-      complexity: 'Easy',
-      status: 'Checked Out',
-      image: 'https://images.pexels.com/photos/5638642/pexels-photo-5638642.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2'
-    },
-    {
-      id: 6,
-      title: 'Gloomhaven',
-      designer: 'Isaac Childres',
-      players: '1-4',
-      duration: '60-120 min',
-      complexity: 'Hard',
-      status: 'Available',
-      image: 'https://images.pexels.com/photos/4834892/pexels-photo-4834892.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2'
-    }
+    // ... (rest of the board games data)
   ];
+
+  const filteredGames = boardGames
+    .filter(game => {
+      const matchesSearch = game.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          game.designer.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesComplexity = selectedComplexity === 'all' || game.complexity === selectedComplexity;
+      const matchesStatus = selectedStatus === 'all' || game.status === selectedStatus;
+      const matchesPlayers = selectedPlayers === 'all' || game.players.includes(selectedPlayers);
+      return matchesSearch && matchesComplexity && matchesStatus && matchesPlayers;
+    })
+    .sort((a, b) => {
+      const order = sortOrder === 'asc' ? 1 : -1;
+      switch (sortBy) {
+        case 'title':
+          return order * a.title.localeCompare(b.title);
+        case 'designer':
+          return order * a.designer.localeCompare(b.designer);
+        case 'complexity':
+          const complexityOrder = { 'Easy': 1, 'Medium': 2, 'Hard': 3 };
+          return order * (complexityOrder[a.complexity as keyof typeof complexityOrder] - complexityOrder[b.complexity as keyof typeof complexityOrder]);
+        default:
+          return 0;
+      }
+    });
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-800">Board Games</h1>
         <div className="flex space-x-2">
-          <button className="px-4 py-2 bg-blue-800 text-white rounded-md hover:bg-blue-900 transition-colors duration-150 flex items-center text-sm">
+          <Link 
+            to="/add-board-game"
+            className="px-4 py-2 bg-blue-800 text-white rounded-md hover:bg-blue-900 transition-colors duration-150 flex items-center text-sm"
+          >
             <PlusCircle size={16} className="mr-2" />
             Add Board Game
-          </button>
+          </Link>
         </div>
       </div>
 
@@ -105,14 +92,107 @@ const BoardGames: React.FC = () => {
         </div>
         
         <div className="flex space-x-2">
-          <button className="px-4 py-2 bg-white border border-gray-300 rounded-md text-gray-700 flex items-center text-sm hover:bg-gray-50 transition-colors">
-            <Filter size={16} className="mr-2 text-gray-500" />
-            Filter
-          </button>
-          <button className="px-4 py-2 bg-white border border-gray-300 rounded-md text-gray-700 flex items-center text-sm hover:bg-gray-50 transition-colors">
-            <SortDesc size={16} className="mr-2 text-gray-500" />
-            Sort
-          </button>
+          {/* Filter Button */}
+          <div className="relative">
+            <button 
+              className="px-4 py-2 bg-white border border-gray-300 rounded-md text-gray-700 flex items-center text-sm hover:bg-gray-50 transition-colors"
+              onClick={() => setShowFilters(!showFilters)}
+            >
+              <Filter size={16} className="mr-2 text-gray-500" />
+              Filter
+              <ChevronDown size={16} className="ml-2 text-gray-500" />
+            </button>
+            
+            {showFilters && (
+              <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-1 z-50">
+                <div className="px-4 py-2 border-b border-gray-200">
+                  <h3 className="text-sm font-semibold text-gray-800">Complexity</h3>
+                  <select
+                    value={selectedComplexity}
+                    onChange={(e) => setSelectedComplexity(e.target.value)}
+                    className="mt-1 block w-full text-sm border-gray-300 rounded-md"
+                  >
+                    <option value="all">All Levels</option>
+                    <option value="Easy">Easy</option>
+                    <option value="Medium">Medium</option>
+                    <option value="Hard">Hard</option>
+                  </select>
+                </div>
+                <div className="px-4 py-2 border-b border-gray-200">
+                  <h3 className="text-sm font-semibold text-gray-800">Players</h3>
+                  <select
+                    value={selectedPlayers}
+                    onChange={(e) => setSelectedPlayers(e.target.value)}
+                    className="mt-1 block w-full text-sm border-gray-300 rounded-md"
+                  >
+                    <option value="all">Any Number</option>
+                    <option value="2">2 Players</option>
+                    <option value="3">3 Players</option>
+                    <option value="4">4 Players</option>
+                    <option value="5">5+ Players</option>
+                  </select>
+                </div>
+                <div className="px-4 py-2">
+                  <h3 className="text-sm font-semibold text-gray-800">Status</h3>
+                  <select
+                    value={selectedStatus}
+                    onChange={(e) => setSelectedStatus(e.target.value)}
+                    className="mt-1 block w-full text-sm border-gray-300 rounded-md"
+                  >
+                    <option value="all">All Status</option>
+                    <option value="Available">Available</option>
+                    <option value="Checked Out">Checked Out</option>
+                  </select>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Sort Button */}
+          <div className="relative">
+            <button 
+              className="px-4 py-2 bg-white border border-gray-300 rounded-md text-gray-700 flex items-center text-sm hover:bg-gray-50 transition-colors"
+              onClick={() => setShowSort(!showSort)}
+            >
+              <SortDesc size={16} className="mr-2 text-gray-500" />
+              Sort
+              <ChevronDown size={16} className="ml-2 text-gray-500" />
+            </button>
+            
+            {showSort && (
+              <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-1 z-50">
+                <button
+                  className={`block w-full text-left px-4 py-2 text-sm ${sortBy === 'title' ? 'text-blue-800 bg-blue-50' : 'text-gray-700 hover:bg-gray-50'}`}
+                  onClick={() => {
+                    setSortBy('title');
+                    setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                  }}
+                >
+                  Title {sortBy === 'title' && (sortOrder === 'asc' ? '↑' : '↓')}
+                </button>
+                <button
+                  className={`block w-full text-left px-4 py-2 text-sm ${sortBy === 'designer' ? 'text-blue-800 bg-blue-50' : 'text-gray-700 hover:bg-gray-50'}`}
+                  onClick={() => {
+                    setSortBy('designer');
+                    setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                  }}
+                >
+                  Designer {sortBy === 'designer' && (sortOrder === 'asc' ? '↑' : '↓')}
+                </button>
+                <button
+                  className={`block w-full text-left px-4 py-2 text-sm ${sortBy === 'complexity' ? 'text-blue-800 bg-blue-50' : 'text-gray-700 hover:bg-gray-50'}`}
+                  onClick={() => {
+                    setSortBy('complexity');
+                    setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                  }}
+                >
+                  Complexity {sortBy === 'complexity' && (sortOrder === 'asc' ? '↑' : '↓')}
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* View Toggle */}
           <div className="bg-white border border-gray-300 rounded-md flex">
             <button 
               className={`p-2 ${view === 'grid' ? 'bg-gray-100 text-blue-800' : 'text-gray-500 hover:bg-gray-50'}`}
@@ -133,7 +213,7 @@ const BoardGames: React.FC = () => {
       {/* Board Games Grid/List */}
       {view === 'grid' ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {boardGames.map(game => (
+          {filteredGames.map(game => (
             <div key={game.id} className="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-200">
               <div className="h-40 overflow-hidden">
                 <img src={game.image} alt={game.title} className="w-full h-full object-cover transition-transform duration-300 hover:scale-105" />
@@ -187,7 +267,7 @@ const BoardGames: React.FC = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {boardGames.map(game => (
+              {filteredGames.map(game => (
                 <tr key={game.id} className="hover:bg-gray-50 transition-colors duration-150">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">

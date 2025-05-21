@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 
 interface ActivityItemProps {
   user: string;
@@ -18,7 +19,9 @@ const ActivityItem: React.FC<ActivityItemProps> = ({ user, action, item, time, i
         <p className="text-sm">
           <span className="font-medium text-gray-800">{user}</span>{' '}
           <span className="text-gray-600">{action}</span>{' '}
-          <span className="font-medium text-gray-800">{item}</span>
+          <Link to="/activity" className="font-medium text-gray-800 hover:text-blue-800 transition-colors">
+            {item}
+          </Link>
         </p>
         <p className="text-xs text-gray-500 mt-0.5">{time}</p>
       </div>
