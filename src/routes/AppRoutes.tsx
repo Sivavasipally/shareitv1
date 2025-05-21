@@ -14,10 +14,12 @@ import Login from '../pages/Login';
 import SignUp from '../pages/SignUp';
 import Profile from '../pages/Profile';
 import Activity from '../pages/Activity';
+import Admin from '../pages/Admin';
 
 const AppRoutes: React.FC = () => {
   // TODO: Implement actual auth check
   const isAuthenticated = true;
+  const isAdmin = true; // TODO: Implement actual admin check
 
   return (
     <Routes>
@@ -36,6 +38,14 @@ const AppRoutes: React.FC = () => {
       <Route path="/menu" element={isAuthenticated ? <MobileMenu /> : <Navigate to="/login" />} />
       <Route path="/profile" element={isAuthenticated ? <Profile /> : <Navigate to="/login" />} />
       <Route path="/activity" element={isAuthenticated ? <Activity /> : <Navigate to="/login" />} />
+      
+      {/* Admin Routes */}
+      <Route 
+        path="/admin" 
+        element={
+          isAuthenticated && isAdmin ? <Admin /> : <Navigate to="/" />
+        } 
+      />
     </Routes>
   );
 };

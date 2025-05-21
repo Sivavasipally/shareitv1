@@ -1,16 +1,28 @@
 import React from 'react';
 import { NavLink, Link } from 'react-router-dom';
-import { LayoutDashboard, BookOpen, Dice1 as Dice, LogOut, PlusCircle, CheckSquare, Bell } from 'lucide-react';
+import { 
+  LayoutDashboard, 
+  BookOpen, 
+  Dice1 as Dice, 
+  LogOut, 
+  PlusCircle, 
+  CheckSquare, 
+  Bell,
+  Settings
+} from 'lucide-react';
 
 const Sidebar: React.FC = () => {
+  // TODO: Implement actual admin check
+  const isAdmin = true;
+
   return (
     <div className="w-64 h-full bg-white border-r border-gray-200 flex flex-col transition-all duration-300 ease-in-out">
       {/* Logo */}
       <div className="p-6">
-        <h1 className="text-2xl font-bold text-blue-800 flex items-center">
+        <Link to="/" className="text-2xl font-bold text-blue-800 flex items-center">
           <BookOpen className="mr-2" />
           LibraryHub
-        </h1>
+        </Link>
       </div>
       
       {/* Navigation */}
@@ -30,6 +42,15 @@ const Sidebar: React.FC = () => {
             <NavItem to="/notifications" icon={<Bell size={20} />} label="Notifications" badge={3} />
           </div>
         </div>
+
+        {isAdmin && (
+          <div className="mt-8">
+            <p className="text-xs uppercase text-gray-500 font-medium px-3 mb-2">Admin</p>
+            <div className="space-y-1">
+              <NavItem to="/admin" icon={<Settings size={20} />} label="Settings" />
+            </div>
+          </div>
+        )}
       </nav>
       
       {/* Logout */}
