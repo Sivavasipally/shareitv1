@@ -21,7 +21,7 @@ const Sidebar: React.FC = () => {
       <div className="p-6">
         <Link to="/" className="text-2xl font-bold text-blue-800 flex items-center">
           <BookOpen className="mr-2" />
-          LibraryHub
+          Share-IT - B&B
         </Link>
       </div>
       

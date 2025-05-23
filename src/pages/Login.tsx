@@ -25,7 +25,7 @@ const Login: React.FC = () => {
           </div>
         </div>
         <h2 className="mt-6 text-center text-3xl font-bold tracking-tight text-gray-900">
-          Sign in to LibraryHub
+          Sign in to Share-iT
         </h2>
         <p className="mt-2 text-center text-sm text-gray-600">
           Or{' '}
