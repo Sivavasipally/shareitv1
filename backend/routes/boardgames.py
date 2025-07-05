@@ -8,6 +8,8 @@ from utils.jwt_handler import get_current_user
 from utils.validators import sanitize_html
 
 router = APIRouter(prefix="/api/boardgames", tags=["boardgames"])
+
+
 class BoardGameCreate(BaseModel):
     title: str = Field(..., min_length=1, max_length=200)
     designer: Optional[str] = Field(None, max_length=100)

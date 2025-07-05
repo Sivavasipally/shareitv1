@@ -101,7 +101,7 @@ const BoardGames: React.FC = () => {
       alert('Request sent successfully!');
       fetchBoardGames(); // Refresh the list
     } catch (err: any) {
-      alert(err.response?.data?.detail || 'Failed to send request');
+      alert(err.message || 'Failed to send request');
     }
   };
 
@@ -262,6 +262,7 @@ const BoardGames: React.FC = () => {
                   onClick={() => {
                     setSortBy('title');
                     setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                    setShowSort(false);
                   }}
                 >
                   Title {sortBy === 'title' && (sortOrder === 'asc' ? '↑' : '↓')}
@@ -271,6 +272,7 @@ const BoardGames: React.FC = () => {
                   onClick={() => {
                     setSortBy('designer');
                     setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                    setShowSort(false);
                   }}
                 >
                   Designer {sortBy === 'designer' && (sortOrder === 'asc' ? '↑' : '↓')}
@@ -280,6 +282,7 @@ const BoardGames: React.FC = () => {
                   onClick={() => {
                     setSortBy('complexity');
                     setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                    setShowSort(false);
                   }}
                 >
                   Complexity {sortBy === 'complexity' && (sortOrder === 'asc' ? '↑' : '↓')}
@@ -311,7 +314,7 @@ const BoardGames: React.FC = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
           {sortedGames.map(game => (
             <div key={game.id} className="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-200">
-              <div className="h-40 overflow-hidden bg-gray-100">
+              <div className="h-48 overflow-hidden bg-gray-100">
                 {game.image_url ? (
                   <img
                     src={game.image_url}
@@ -325,10 +328,10 @@ const BoardGames: React.FC = () => {
                 )}
               </div>
               <div className="p-4">
-                <div className="flex justify-between items-start">
-                  <h3 className="text-md font-semibold text-gray-800 line-clamp-1">{game.title}</h3>
+                <div className="flex justify-between items-start mb-2">
+                  <h3 className="text-md font-semibold text-gray-800 line-clamp-2 flex-1">{game.title}</h3>
                   <span
-                    className={`text-xs rounded-full px-2 py-1 ${
+                    className={`text-xs rounded-full px-2 py-1 ml-2 ${
                       game.is_available
                         ? 'bg-green-100 text-green-800'
                         : 'bg-amber-100 text-amber-800'
@@ -337,8 +340,8 @@ const BoardGames: React.FC = () => {
                     {game.is_available ? 'Available' : 'Checked Out'}
                   </span>
                 </div>
-                <p className="text-sm text-gray-500 mt-1">{game.designer || 'Unknown Designer'}</p>
-                <div className="mt-3 flex justify-between items-center">
+                <p className="text-sm text-gray-500 mb-2">{game.designer || 'Unknown Designer'}</p>
+                <div className="flex justify-between items-center mb-3">
                   <span className="text-xs flex items-center">
                     <Users size={12} className="mr-1 text-gray-500" />
                     {getPlayersText(game)}
@@ -358,9 +361,9 @@ const BoardGames: React.FC = () => {
                     <span className="text-xs text-gray-500">{game.play_time}</span>
                   )}
                 </div>
-                <div className="mt-3 flex justify-between items-center">
+                <div className="flex justify-between items-center">
                   <p className="text-xs text-gray-500">by {game.owner_name}</p>
-                  {game.is_available && game.owner_id !== user?.id && (
+                  {game.is_available && game.owner_id !== parseInt(user?.id || '0') && (
                     <button
                       onClick={() => handleRequest(game.id)}
                       className="text-xs px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
@@ -459,7 +462,7 @@ const BoardGames: React.FC = () => {
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    {game.is_available && game.owner_id !== user?.id ? (
+                    {game.is_available && game.owner_id !== parseInt(user?.id || '0') ? (
                       <button
                         onClick={() => handleRequest(game.id)}
                         className="text-sm text-blue-600 hover:text-blue-800"
