@@ -1,32 +1,73 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, Bell, User } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import apiService from '../../services/api';
+import { useUser } from '../../context/UserContext';
 
 const TopBar: React.FC = () => {
+  const { user, logout } = useUser();
+  const navigate = useNavigate();
   const [searchValue, setSearchValue] = useState('');
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
 
-  const notifications = [
-    { id: 1, message: 'New book request', time: '2 min ago' },
-    { id: 2, message: 'Board game returned', time: '1 hour ago' },
-    { id: 3, message: 'Overdue reminder', time: '2 hours ago' },
-  ];
+  useEffect(() => {
+    fetchNotifications();
+  }, []);
+
+  const fetchNotifications = async () => {
+    try {
+      const response = await apiService.getNotifications({ limit: 5 });
+      setNotifications(response.data || []);
+      setUnreadCount(response.unread_count || 0);
+    } catch (err) {
+      console.error('Error fetching notifications:', err);
+    }
+  };
+
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchValue.trim()) {
+      // Navigate to search results or handle search
+      console.log('Searching for:', searchValue);
+    }
+  };
+
+  const handleLogout = () => {
+    logout();
+    apiService.logout();
+    navigate('/');
+  };
+
+  const formatTimeAgo = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+    if (diffInSeconds < 60) return 'just now';
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
+    return `${Math.floor(diffInSeconds / 86400)}d ago`;
+  };
 
   return (
     <header className="bg-white border-b border-gray-200 py-3 px-4 md:px-6 flex items-center justify-between">
       {/* Search */}
       <div className="relative flex-1 max-w-lg">
-        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-          <Search size={18} className="text-gray-400" />
-        </div>
-        <input
-          type="text"
-          className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-gray-50 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white sm:text-sm transition-colors duration-200"
-          placeholder="Search books, board games, or users..."
-          value={searchValue}
-          onChange={(e) => setSearchValue(e.target.value)}
-        />
+        <form onSubmit={handleSearch}>
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <Search size={18} className="text-gray-400" />
+          </div>
+          <input
+            type="text"
+            className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-gray-50 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white sm:text-sm transition-colors duration-200"
+            placeholder="Search books, board games, or users..."
+            value={searchValue}
+            onChange={(e) => setSearchValue(e.target.value)}
+          />
+        </form>
       </div>
       
       {/* Actions */}
@@ -38,11 +79,15 @@ const TopBar: React.FC = () => {
             onClick={() => setShowNotifications(!showNotifications)}
           >
             <Bell size={20} />
-            <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white"></span>
+            {unreadCount > 0 && (
+              <span className="absolute -top-1 -right-1 block h-4 w-4 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
           </button>
           
           {showNotifications && (
-            <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg py-1 z-50">
+            <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg py-1 z-50 border border-gray-200">
               <div className="px-4 py-2 border-b border-gray-200">
                 <div className="flex justify-between items-center">
                   <h3 className="text-sm font-semibold text-gray-800">Notifications</h3>
@@ -55,15 +100,22 @@ const TopBar: React.FC = () => {
                   </Link>
                 </div>
               </div>
-              {notifications.map(notification => (
-                <div 
-                  key={notification.id} 
-                  className="px-4 py-3 hover:bg-gray-50 cursor-pointer"
-                >
-                  <p className="text-sm text-gray-800">{notification.message}</p>
-                  <p className="text-xs text-gray-500 mt-1">{notification.time}</p>
+              {notifications.length > 0 ? (
+                notifications.map(notification => (
+                  <div 
+                    key={notification.id} 
+                    className={`px-4 py-3 hover:bg-gray-50 cursor-pointer ${!notification.is_read ? 'bg-blue-50' : ''}`}
+                  >
+                    <p className="text-sm text-gray-800 font-medium">{notification.title}</p>
+                    <p className="text-xs text-gray-600 mt-1">{notification.message}</p>
+                    <p className="text-xs text-gray-500 mt-1">{formatTimeAgo(notification.created_at)}</p>
+                  </div>
+                ))
+              ) : (
+                <div className="px-4 py-3 text-center text-sm text-gray-500">
+                  No notifications
                 </div>
-              ))}
+              )}
             </div>
           )}
         </div>
@@ -80,7 +132,11 @@ const TopBar: React.FC = () => {
           </button>
           
           {showProfile && (
-            <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-1 z-50">
+            <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-1 z-50 border border-gray-200">
+              <div className="px-4 py-2 border-b border-gray-200">
+                <p className="text-sm font-medium text-gray-900">{user?.username}</p>
+                <p className="text-xs text-gray-500">{user?.email}</p>
+              </div>
               <Link 
                 to="/profile" 
                 className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
@@ -95,14 +151,25 @@ const TopBar: React.FC = () => {
               >
                 Activity
               </Link>
+              {user?.isAdmin && (
+                <Link 
+                  to="/admin" 
+                  className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  onClick={() => setShowProfile(false)}
+                >
+                  Admin Panel
+                </Link>
+              )}
               <div className="border-t border-gray-200"></div>
-              <Link 
-                to="/login" 
-                className="block px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
-                onClick={() => setShowProfile(false)}
+              <button 
+                onClick={() => {
+                  setShowProfile(false);
+                  handleLogout();
+                }}
+                className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
               >
                 Sign out
-              </Link>
+              </button>
             </div>
           )}
         </div>

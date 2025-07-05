@@ -172,12 +172,12 @@ const Dashboard: React.FC = () => {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
         <div className="flex space-x-2">
-          <div className="dropdown relative">
+          <div className="relative group">
             <button className="px-4 py-2 bg-blue-800 text-white rounded-md hover:bg-blue-900 transition-colors duration-150 flex items-center text-sm">
               <PlusCircle size={16} className="mr-2" />
               Add New Item
             </button>
-            <div className="dropdown-menu absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 hidden group-hover:block">
+            <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 hidden group-hover:block z-10">
               <Link
                 to="/add-book"
                 className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"

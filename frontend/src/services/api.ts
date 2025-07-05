@@ -1,4 +1,3 @@
-// Use import.meta.env for client-side environment variables in a Vite project
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 interface ApiResponse<T = any> {
@@ -12,7 +11,6 @@ class ApiService {
   private token: string | null = null;
 
   constructor() {
-    // Try to get token from localStorage on initialization
     this.token = localStorage.getItem('auth_token');
   }
 
@@ -20,7 +18,6 @@ class ApiService {
     endpoint: string,
     options: RequestInit = {}
   ): Promise<ApiResponse<T>> {
-    // The endpoint should start with /api/
     const url = `${API_BASE_URL}${endpoint}`;
 
     const config: RequestInit = {
@@ -37,13 +34,10 @@ class ApiService {
       const data = await response.json();
 
       if (!response.ok) {
-        // Handle error responses
         if (response.status === 401) {
-          // Unauthorized - clear token and redirect to login
           this.logout();
-          window.location.href = '/login';
+          window.location.href = '/';
         }
-
         throw new Error(data.detail || data.message || `API Error: ${response.statusText}`);
       }
 
@@ -52,6 +46,35 @@ class ApiService {
       console.error('API Request Error:', error);
       throw error;
     }
+  }
+
+  // Generic GET method
+  async get<T = any>(endpoint: string, params?: Record<string, any>): Promise<ApiResponse<T>> {
+    const queryString = params ? '?' + new URLSearchParams(params).toString() : '';
+    return this.request<T>(`${endpoint}${queryString}`);
+  }
+
+  // Generic POST method
+  async post<T = any>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
+    return this.request<T>(endpoint, {
+      method: 'POST',
+      body: data ? JSON.stringify(data) : undefined,
+    });
+  }
+
+  // Generic PUT method
+  async put<T = any>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
+    return this.request<T>(endpoint, {
+      method: 'PUT',
+      body: data ? JSON.stringify(data) : undefined,
+    });
+  }
+
+  // Generic DELETE method
+  async delete<T = any>(endpoint: string): Promise<ApiResponse<T>> {
+    return this.request<T>(endpoint, {
+      method: 'DELETE',
+    });
   }
 
   // Auth methods
@@ -66,16 +89,13 @@ class ApiService {
     contact_times?: string[];
     interests?: string[];
   }) {
-    const response = await this.request<{
+    const response = await this.post<{
       user_id: number;
       username: string;
       email: string;
       token: string;
       is_admin: boolean;
-    }>('/api/auth/register', {
-      method: 'POST',
-      body: JSON.stringify(userData),
-    });
+    }>('/api/auth/register', userData);
 
     if (response.data?.token) {
       this.token = response.data.token;
@@ -86,7 +106,7 @@ class ApiService {
   }
 
   async login(email: string, password: string) {
-    const response = await this.request<{
+    const response = await this.post<{
       user_id: number;
       username: string;
       email: string;
@@ -98,10 +118,7 @@ class ApiService {
       interests?: string[];
       is_admin: boolean;
       token: string;
-    }>('/api/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ email, password }),
-    });
+    }>('/api/auth/login', { email, password });
 
     if (response.data?.token) {
       this.token = response.data.token;
@@ -112,7 +129,7 @@ class ApiService {
   }
 
   async getMe() {
-    return this.request<{
+    return this.get<{
       id: number;
       username: string;
       email: string;
@@ -134,10 +151,7 @@ class ApiService {
     contact_times?: string[];
     interests?: string[];
   }) {
-    return this.request('/api/auth/profile', {
-      method: 'PUT',
-      body: JSON.stringify(updates),
-    });
+    return this.put('/api/auth/profile', updates);
   }
 
   logout() {
@@ -150,9 +164,10 @@ class ApiService {
     search?: string;
     genre?: string;
     available?: boolean;
+    limit?: number;
+    offset?: number;
   }) {
-    const queryString = new URLSearchParams(params as any).toString();
-    return this.request<Array<{
+    return this.get<Array<{
       id: number;
       title: string;
       author: string;
@@ -167,11 +182,11 @@ class ApiService {
       is_available: boolean;
       tags: string[];
       created_at: string;
-    }>>(`/api/books?${queryString}`);
+    }>>('/api/books', params);
   }
 
   async getBook(id: number) {
-    return this.request(`/api/books/${id}`);
+    return this.get(`/api/books/${id}`);
   }
 
   async createBook(bookData: {
@@ -185,23 +200,19 @@ class ApiService {
     cover_url?: string;
     tags?: string[];
   }) {
-    return this.request<{ id: number }>('/api/books', {
-      method: 'POST',
-      body: JSON.stringify(bookData),
-    });
+    return this.post<{ id: number }>('/api/books', bookData);
   }
 
   async updateBook(id: number, bookData: any) {
-    return this.request(`/api/books/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(bookData),
-    });
+    return this.put(`/api/books/${id}`, bookData);
   }
 
   async deleteBook(id: number) {
-    return this.request(`/api/books/${id}`, {
-      method: 'DELETE',
-    });
+    return this.delete(`/api/books/${id}`);
+  }
+
+  async getMyBooks(params?: { available?: boolean }) {
+    return this.get('/api/books/my/books', params);
   }
 
   // Board Games methods
@@ -209,9 +220,11 @@ class ApiService {
     search?: string;
     complexity?: string;
     available?: boolean;
+    min_players?: number;
+    limit?: number;
+    offset?: number;
   }) {
-    const queryString = new URLSearchParams(params as any).toString();
-    return this.request<Array<{
+    return this.get<Array<{
       id: number;
       title: string;
       designer?: string;
@@ -227,11 +240,11 @@ class ApiService {
       categories: string[];
       components: string[];
       created_at: string;
-    }>>(`/api/boardgames?${queryString}`);
+    }>>('/api/boardgames', params);
   }
 
   async getBoardGame(id: number) {
-    return this.request(`/api/boardgames/${id}`);
+    return this.get(`/api/boardgames/${id}`);
   }
 
   async createBoardGame(gameData: {
@@ -246,32 +259,30 @@ class ApiService {
     categories?: string[];
     components?: string[];
   }) {
-    return this.request<{ id: number }>('/api/boardgames', {
-      method: 'POST',
-      body: JSON.stringify(gameData),
-    });
+    return this.post<{ id: number }>('/api/boardgames', gameData);
   }
 
   async updateBoardGame(id: number, gameData: any) {
-    return this.request(`/api/boardgames/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(gameData),
-    });
+    return this.put(`/api/boardgames/${id}`, gameData);
   }
 
   async deleteBoardGame(id: number) {
-    return this.request(`/api/boardgames/${id}`, {
-      method: 'DELETE',
-    });
+    return this.delete(`/api/boardgames/${id}`);
+  }
+
+  async getMyBoardGames(params?: { available?: boolean }) {
+    return this.get('/api/boardgames/my/boardgames', params);
   }
 
   // Requests methods
   async getRequests(params?: {
     status?: string;
-    type?: string; // 'sent' or 'received'
+    type?: string;
+    item_type?: string;
+    limit?: number;
+    offset?: number;
   }) {
-    const queryString = new URLSearchParams(params as any).toString();
-    return this.request<Array<{
+    return this.get<Array<{
       id: number;
       item_type: string;
       item_id: number;
@@ -289,43 +300,60 @@ class ApiService {
       pickup_date: string;
       return_date: string;
       notes?: string;
-    }>>(`/api/requests?${queryString}`);
+      is_owner: boolean;
+      is_requester: boolean;
+    }>>('/api/requests', params);
+  }
+
+  async getRequest(id: number) {
+    return this.get(`/api/requests/${id}`);
   }
 
   async createRequest(requestData: {
-    item_type: string; // 'book' or 'boardgame'
+    item_type: string;
     item_id: number;
     pickup_date: string;
     return_date: string;
     notes?: string;
   }) {
-    return this.request<{ id: number }>('/api/requests', {
-      method: 'POST',
-      body: JSON.stringify(requestData),
-    });
+    return this.post<{ id: number }>('/api/requests', requestData);
+  }
+
+  async updateRequest(id: number, requestData: {
+    pickup_date?: string;
+    return_date?: string;
+    notes?: string;
+  }) {
+    return this.put(`/api/requests/${id}`, requestData);
   }
 
   async approveRequest(requestId: number) {
-    return this.request(`/api/requests/${requestId}/approve`, {
-      method: 'PUT',
-    });
+    return this.put(`/api/requests/${requestId}/approve`);
   }
 
   async rejectRequest(requestId: number) {
-    return this.request(`/api/requests/${requestId}/reject`, {
-      method: 'PUT',
-    });
+    return this.put(`/api/requests/${requestId}/reject`);
+  }
+
+  async cancelRequest(requestId: number) {
+    return this.put(`/api/requests/${requestId}/cancel`);
   }
 
   async returnItem(requestId: number) {
-    return this.request(`/api/requests/${requestId}/return`, {
-      method: 'PUT',
-    });
+    return this.put(`/api/requests/${requestId}/return`);
+  }
+
+  async getRequestStats() {
+    return this.get('/api/requests/stats/summary');
   }
 
   // Notifications methods
-  async getNotifications() {
-    return this.request<Array<{
+  async getNotifications(params?: {
+    is_read?: boolean;
+    limit?: number;
+    offset?: number;
+  }) {
+    return this.get<Array<{
       id: number;
       user_id: number;
       title: string;
@@ -333,29 +361,36 @@ class ApiService {
       type: string;
       is_read: boolean;
       created_at: string;
-    }>>('/api/notifications');
+    }>>('/api/notifications', params);
   }
 
   async markNotificationRead(notificationId: number) {
-    return this.request(`/api/notifications/${notificationId}/read`, {
-      method: 'PUT',
-    });
+    return this.put(`/api/notifications/${notificationId}/read`);
   }
 
   async markAllNotificationsRead() {
-    return this.request('/api/notifications/read-all', {
-      method: 'PUT',
-    });
+    return this.put('/api/notifications/read-all');
+  }
+
+  async deleteNotification(notificationId: number) {
+    return this.delete(`/api/notifications/${notificationId}`);
+  }
+
+  async deleteAllNotifications() {
+    return this.delete('/api/notifications');
+  }
+
+  async getNotificationCount() {
+    return this.get('/api/notifications/count');
   }
 
   // Admin methods
   async getAdminStats() {
-    return this.request<{
-      total_users: number;
-      total_books: number;
-      total_boardgames: number;
-      pending_requests: number;
-      active_loans: number;
+    return this.get<{
+      users: { total: number; active: number; new_this_week: number; admins: number };
+      books: { total: number; available: number; genres: number };
+      boardgames: { total: number; available: number; easy: number; medium: number; hard: number };
+      requests: { total: number; pending: number; approved: number; rejected: number; returned: number; active_loans: number };
       recent_activities: Array<{
         id: number;
         user_id: number;
@@ -363,36 +398,68 @@ class ApiService {
         action: string;
         item_type: string;
         item_id: number;
+        details?: any;
         created_at: string;
       }>;
+      top_users: {
+        lenders: Array<{ id: number; username: string; loans_count: number }>;
+        borrowers: Array<{ id: number; username: string; borrows_count: number }>;
+      };
     }>('/api/admin/stats');
   }
 
-  async getUsers() {
-    return this.request<Array<{
-      id: number;
-      username: string;
-      email: string;
-      full_name?: string;
-      is_admin: boolean;
-      is_active: boolean;
-      created_at: string;
-    }>>('/api/admin/users');
+  async getUsers(params?: {
+    search?: string;
+    is_active?: boolean;
+    is_admin?: boolean;
+    limit?: number;
+    offset?: number;
+  }) {
+    return this.get('/api/admin/users', params);
+  }
+
+  async getUserDetails(userId: number) {
+    return this.get(`/api/admin/users/${userId}`);
   }
 
   async updateUser(userId: number, updates: {
     is_admin?: boolean;
     is_active?: boolean;
   }) {
-    return this.request(`/api/admin/users/${userId}`, {
-      method: 'PUT',
-      body: JSON.stringify(updates),
-    });
+    return this.put(`/api/admin/users/${userId}`, updates);
+  }
+
+  async deleteUser(userId: number) {
+    return this.delete(`/api/admin/users/${userId}`);
+  }
+
+  // Activity log
+  async getActivityLog(params?: {
+    user_id?: number;
+    action?: string;
+    item_type?: string;
+    limit?: number;
+    offset?: number;
+  }) {
+    return this.get<Array<{
+      id: number;
+      user_id: number;
+      username: string;
+      action: string;
+      item_type: string;
+      item_id: number;
+      details?: any;
+      created_at: string;
+    }>>('/api/activity', params);
+  }
+
+  async getActivitySummary(days: number = 7) {
+    return this.get('/api/activity/summary', { days });
   }
 
   // Search method
   async search(query: string) {
-    return this.request<{
+    return this.get<{
       books: Array<{
         id: number;
         title: string;
@@ -407,49 +474,10 @@ class ApiService {
         owner_name: string;
         is_available: boolean;
       }>;
-    }>(`/api/search?q=${encodeURIComponent(query)}`);
-  }
-
-  // Activity log
-  async getActivityLog(params?: {
-    user_id?: number;
-    limit?: number;
-  }) {
-    const queryString = new URLSearchParams(params as any).toString();
-    return this.request<Array<{
-      id: number;
-      user_id: number;
-      username: string;
-      action: string;
-      item_type: string;
-      item_id: number;
-      details?: any;
-      created_at: string;
-    }>>(`/api/activity?${queryString}`);
-  }
-
-  // File upload helper
-  async uploadImage(file: File, type: 'book' | 'boardgame' = 'book'): Promise<string> {
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('type', type);
-
-    const response = await fetch(`${API_BASE_URL}/api/upload`, {
-      method: 'POST',
-      headers: {
-        ...(this.token && { Authorization: `Bearer ${this.token}` }),
-      },
-      body: formData,
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to upload image');
-    }
-
-    const data = await response.json();
-    return data.url;
+      query: string;
+      total_results: number;
+    }>('/api/search', { q: query });
   }
 }
 
-// Export singleton instance
 export default new ApiService();

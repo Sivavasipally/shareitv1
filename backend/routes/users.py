@@ -9,7 +9,7 @@ from database import execute_query, execute_one
 from utils.jwt_handler import get_current_user
 from utils.validators import validate_email, validate_phone
 
-router = APIRouter(prefix="/api", tags=["users"])
+router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
 
 # Pydantic models
@@ -45,7 +45,7 @@ class PasswordUpdate(BaseModel):
 
 
 # Auth endpoints
-@router.post("/auth/register", status_code=status.HTTP_201_CREATED)
+@router.post("/register", status_code=status.HTTP_201_CREATED)
 async def register(user: UserRegister):
     """Register a new user"""
     # Validate email format
@@ -72,7 +72,7 @@ async def register(user: UserRegister):
     return {"success": True, "data": result}
 
 
-@router.post("/auth/login")
+@router.post("/login")
 async def login(user: UserLogin):
     """Login user"""
     result, error = AuthService.login_user(user.email, user.password)
@@ -83,7 +83,7 @@ async def login(user: UserLogin):
     return {"success": True, "data": result}
 
 
-@router.get("/auth/me")
+@router.get("/me")
 async def get_me(current_user: dict = Depends(get_current_user)):
     """Get current user information"""
     return {"success": True, "data": {
@@ -100,7 +100,7 @@ async def get_me(current_user: dict = Depends(get_current_user)):
     }}
 
 
-@router.put("/auth/profile")
+@router.put("/profile")
 async def update_profile(
         updates: UserUpdate,
         current_user: dict = Depends(get_current_user)
@@ -153,7 +153,7 @@ async def update_profile(
     return {"success": True, "message": "Profile updated successfully"}
 
 
-@router.put("/auth/password")
+@router.put("/password")
 async def update_password(
         password_data: PasswordUpdate,
         current_user: dict = Depends(get_current_user)
@@ -204,7 +204,7 @@ async def get_user(
     return {"success": True, "data": user}
 
 
-@router.delete("/auth/account")
+@router.delete("/account")
 async def delete_account(
         current_user: dict = Depends(get_current_user)
 ):

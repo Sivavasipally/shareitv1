@@ -8,7 +8,8 @@ import {
   List,
   ChevronDown,
   Loader,
-  AlertCircle
+  AlertCircle,
+  BookOpen
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import apiService from '../services/api';
@@ -84,7 +85,7 @@ const Books: React.FC = () => {
 
   const fetchGenres = async () => {
     try {
-      const response = await apiService.get('/books/genres/list');
+      const response = await apiService.get('/api/books/genres/list');
       const genreList = response.data.map((g: any) => g.genre).filter(Boolean);
       setGenres(genreList);
     } catch (err) {
@@ -104,9 +105,9 @@ const Books: React.FC = () => {
 
       await apiService.createRequest(requestData);
       alert('Request sent successfully!');
-      fetchBooks(); // Refresh the list
+      fetchBooks();
     } catch (err: any) {
-      alert(err.response?.data?.detail || 'Failed to send request');
+      alert(err.message || 'Failed to send request');
     }
   };
 
@@ -240,6 +241,7 @@ const Books: React.FC = () => {
                   onClick={() => {
                     setSortBy('title');
                     setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                    setShowSort(false);
                   }}
                 >
                   Title {sortBy === 'title' && (sortOrder === 'asc' ? '↑' : '↓')}
@@ -249,6 +251,7 @@ const Books: React.FC = () => {
                   onClick={() => {
                     setSortBy('author');
                     setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                    setShowSort(false);
                   }}
                 >
                   Author {sortBy === 'author' && (sortOrder === 'asc' ? '↑' : '↓')}
@@ -258,6 +261,7 @@ const Books: React.FC = () => {
                   onClick={() => {
                     setSortBy('year');
                     setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                    setShowSort(false);
                   }}
                 >
                   Year {sortBy === 'year' && (sortOrder === 'asc' ? '↑' : '↓')}
@@ -289,7 +293,7 @@ const Books: React.FC = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
           {sortedBooks.map(book => (
             <div key={book.id} className="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-200">
-              <div className="h-40 overflow-hidden bg-gray-100">
+              <div className="h-48 overflow-hidden bg-gray-100">
                 {book.cover_url ? (
                   <img
                     src={book.cover_url}
@@ -303,10 +307,10 @@ const Books: React.FC = () => {
                 )}
               </div>
               <div className="p-4">
-                <div className="flex justify-between items-start">
-                  <h3 className="text-md font-semibold text-gray-800 line-clamp-1">{book.title}</h3>
+                <div className="flex justify-between items-start mb-2">
+                  <h3 className="text-md font-semibold text-gray-800 line-clamp-2 flex-1">{book.title}</h3>
                   <span
-                    className={`text-xs rounded-full px-2 py-1 ${
+                    className={`text-xs rounded-full px-2 py-1 ml-2 ${
                       book.is_available
                         ? 'bg-green-100 text-green-800'
                         : 'bg-amber-100 text-amber-800'
@@ -315,8 +319,8 @@ const Books: React.FC = () => {
                     {book.is_available ? 'Available' : 'Checked Out'}
                   </span>
                 </div>
-                <p className="text-sm text-gray-500 mt-1">{book.author}</p>
-                <div className="mt-2 flex justify-between items-center">
+                <p className="text-sm text-gray-500 mb-2">{book.author}</p>
+                <div className="flex justify-between items-center mb-3">
                   {book.genre && (
                     <span className="text-xs bg-gray-100 text-gray-700 rounded-full px-2 py-1">{book.genre}</span>
                   )}
@@ -324,9 +328,9 @@ const Books: React.FC = () => {
                     <span className="text-xs text-gray-500">{book.publication_year}</span>
                   )}
                 </div>
-                <div className="mt-3 flex justify-between items-center">
+                <div className="flex justify-between items-center">
                   <p className="text-xs text-gray-500">by {book.owner_name}</p>
-                  {book.is_available && book.owner_id !== user?.id && (
+                  {book.is_available && book.owner_id !== parseInt(user?.id || '0') && (
                     <button
                       onClick={() => handleRequest(book.id)}
                       className="text-xs px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
@@ -405,7 +409,7 @@ const Books: React.FC = () => {
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    {book.is_available && book.owner_id !== user?.id ? (
+                    {book.is_available && book.owner_id !== parseInt(user?.id || '0') ? (
                       <button
                         onClick={() => handleRequest(book.id)}
                         className="text-sm text-blue-600 hover:text-blue-800"
