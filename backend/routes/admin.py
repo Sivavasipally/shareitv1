@@ -1,13 +1,14 @@
 from fastapi import APIRouter, HTTPException, Depends, status, Query
 from pydantic import BaseModel
 from typing import Optional, List
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta # Ensure datetime is imported
 import json
+import os
 
 from database import execute_query, execute_one
 from utils.jwt_handler import get_current_user, require_admin
 
-router = APIRouter(prefix="/api/admin", tags=["admin"])
+router = APIRouter(prefix="/admin", tags=["admin"])
 
 
 class UserUpdate(BaseModel):
@@ -24,16 +25,15 @@ class CommunityCreate(BaseModel):
 @router.get("/stats")
 async def get_admin_stats(current_user: dict = Depends(require_admin)):
     """Get overall platform statistics"""
+    # Check database type
+    db_type = os.getenv('DB_TYPE', 'sqlite').lower()
+
     # Basic counts
     stats = {
         'users': {
             'total': execute_one("SELECT COUNT(*) as count FROM users")['count'],
             'active': execute_one("SELECT COUNT(*) as count FROM users WHERE is_active = TRUE")['count'],
             'admins': execute_one("SELECT COUNT(*) as count FROM users WHERE is_admin = TRUE")['count'],
-            'new_this_week': execute_one(
-                "SELECT COUNT(*) as count FROM users WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)",
-                ()
-            )['count'] if execute_one("SELECT 1") else 0  # Check if MySQL
         },
         'books': {
             'total': execute_one("SELECT COUNT(*) as count FROM books")['count'],
@@ -57,56 +57,81 @@ async def get_admin_stats(current_user: dict = Depends(require_admin)):
         }
     }
 
-    # Recent activities
-    recent_activities = execute_query(
-        """SELECT al.*, u.username 
-           FROM activity_log al 
-           JOIN users u ON al.user_id = u.id 
-           ORDER BY al.created_at DESC 
-           LIMIT 20""",
-        fetch=True
-    )
+    # New users this week - database specific query
+    if db_type == 'sqlite':
+        # SQLite version
+        new_users_count = execute_one(
+            "SELECT COUNT(*) as count FROM users WHERE created_at >= datetime('now', '-7 days')"
+        )['count']
+    else:
+        # MySQL version
+        new_users_count = execute_one(
+            "SELECT COUNT(*) as count FROM users WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)"
+        )['count']
 
-    # Format dates
-    for activity in recent_activities:
-        activity['created_at'] = activity['created_at'].isoformat() if activity['created_at'] else None
-        if activity['details']:
-            try:
-                activity['details'] = json.loads(activity['details'])
-            except:
-                pass
+    stats['users']['new_this_week'] = new_users_count
 
-    stats['recent_activities'] = recent_activities
+    @router.get("/stats")
+    async def get_admin_stats(current_user: dict = Depends(require_admin)):
+        # ... (stats queries remain the same) ...
 
-    # Top users
-    top_lenders = execute_query(
-        """SELECT u.id, u.username, COUNT(r.id) as loans_count
-           FROM users u
-           JOIN requests r ON u.id = r.owner_id
-           WHERE r.status IN ('approved', 'returned')
-           GROUP BY u.id, u.username
-           ORDER BY loans_count DESC
-           LIMIT 5""",
-        fetch=True
-    )
+        # Recent activities
+        recent_activities = execute_query(
+            """SELECT al.*, u.username 
+               FROM activity_log al 
+               JOIN users u ON al.user_id = u.id 
+               ORDER BY al.created_at DESC 
+               LIMIT 20""",
+            fetch=True
+        )
 
-    top_borrowers = execute_query(
-        """SELECT u.id, u.username, COUNT(r.id) as borrows_count
-           FROM users u
-           JOIN requests r ON u.id = r.requester_id
-           WHERE r.status IN ('approved', 'returned')
-           GROUP BY u.id, u.username
-           ORDER BY borrows_count DESC
-           LIMIT 5""",
-        fetch=True
-    )
+        # Format dates
+        for activity in recent_activities:
+            created_at_val = activity.get('created_at')
+            # Check if the value is a datetime object before formatting
+            if isinstance(created_at_val, datetime):
+                activity['created_at'] = created_at_val.isoformat()
 
-    stats['top_users'] = {
-        'lenders': top_lenders,
-        'borrowers': top_borrowers
-    }
+            # This handles cases where created_at is None or already a string
+            if activity.get('details'):
+                try:
+                    activity['details'] = json.loads(activity['details'])
+                except (json.JSONDecodeError, TypeError):
+                    # Keep original value if it's not valid JSON
+                    pass
 
-    return {"success": True, "data": stats}
+        stats['recent_activities'] = recent_activities
+
+
+        # Top users
+        top_lenders = execute_query(
+            """SELECT u.id, u.username, COUNT(r.id) as loans_count
+               FROM users u
+               JOIN requests r ON u.id = r.owner_id
+               WHERE r.status IN ('approved', 'returned')
+               GROUP BY u.id, u.username
+               ORDER BY loans_count DESC
+               LIMIT 5""",
+            fetch=True
+        )
+
+        top_borrowers = execute_query(
+            """SELECT u.id, u.username, COUNT(r.id) as borrows_count
+               FROM users u
+               JOIN requests r ON u.id = r.requester_id
+               WHERE r.status IN ('approved', 'returned')
+               GROUP BY u.id, u.username
+               ORDER BY borrows_count DESC
+               LIMIT 5""",
+            fetch=True
+        )
+
+        stats['top_users'] = {
+            'lenders': top_lenders,
+            'borrowers': top_borrowers
+        }
+
+        return {"success": True, "data": stats}
 
 
 @router.get("/users")
@@ -119,17 +144,37 @@ async def get_users(
         current_user: dict = Depends(require_admin)
 ):
     """Get all users with filters"""
-    query = """
-        SELECT u.id, u.username, u.email, u.full_name, u.is_admin, 
-               u.is_active, u.created_at, u.updated_at,
-               COUNT(DISTINCT b.id) as books_count,
-               COUNT(DISTINCT bg.id) as boardgames_count,
-               COUNT(*) OVER() as total_count
-        FROM users u
-        LEFT JOIN books b ON u.id = b.owner_id
-        LEFT JOIN board_games bg ON u.id = bg.owner_id
-        WHERE 1=1
-    """
+    # Check database type
+    db_type = os.getenv('DB_TYPE', 'sqlite').lower()
+
+    # Build query based on database type
+    if db_type == 'sqlite':
+        # SQLite version with window function
+        query = """
+            WITH user_counts AS (
+                SELECT u.id, u.username, u.email, u.full_name, u.is_admin, 
+                       u.is_active, u.created_at, u.updated_at,
+                       COUNT(DISTINCT b.id) as books_count,
+                       COUNT(DISTINCT bg.id) as boardgames_count
+                FROM users u
+                LEFT JOIN books b ON u.id = b.owner_id
+                LEFT JOIN board_games bg ON u.id = bg.owner_id
+                WHERE 1=1
+        """
+    else:
+        # MySQL version
+        query = """
+            SELECT u.id, u.username, u.email, u.full_name, u.is_admin, 
+                   u.is_active, u.created_at, u.updated_at,
+                   COUNT(DISTINCT b.id) as books_count,
+                   COUNT(DISTINCT bg.id) as boardgames_count,
+                   COUNT(*) OVER() as total_count
+            FROM users u
+            LEFT JOIN books b ON u.id = b.owner_id
+            LEFT JOIN board_games bg ON u.id = bg.owner_id
+            WHERE 1=1
+        """
+
     params = []
 
     if search:
@@ -144,7 +189,20 @@ async def get_users(
         query += " AND u.is_admin = %s"
         params.append(is_admin)
 
-    query += " GROUP BY u.id ORDER BY u.created_at DESC LIMIT %s OFFSET %s"
+    if db_type == 'sqlite':
+        # Complete SQLite query
+        query += """
+                GROUP BY u.id
+            )
+            SELECT *, (SELECT COUNT(*) FROM users) as total_count
+            FROM user_counts
+            ORDER BY created_at DESC 
+            LIMIT %s OFFSET %s
+        """
+    else:
+        # Complete MySQL query
+        query += " GROUP BY u.id ORDER BY u.created_at DESC LIMIT %s OFFSET %s"
+
     params.extend([limit, offset])
 
     users = execute_query(query, params, fetch=True)
@@ -371,13 +429,28 @@ async def get_activity_log(
         current_user: dict = Depends(require_admin)
 ):
     """Get activity log with filters"""
-    query = """
-        SELECT al.*, u.username,
-               COUNT(*) OVER() as total_count
-        FROM activity_log al
-        JOIN users u ON al.user_id = u.id
-        WHERE 1=1
-    """
+    # Check database type
+    db_type = os.getenv('DB_TYPE', 'sqlite').lower()
+
+    if db_type == 'sqlite':
+        # SQLite version
+        query = """
+            WITH activity_data AS (
+                SELECT al.*, u.username
+                FROM activity_log al
+                JOIN users u ON al.user_id = u.id
+                WHERE 1=1
+        """
+    else:
+        # MySQL version
+        query = """
+            SELECT al.*, u.username,
+                   COUNT(*) OVER() as total_count
+            FROM activity_log al
+            JOIN users u ON al.user_id = u.id
+            WHERE 1=1
+        """
+
     params = []
 
     if user_id:
@@ -392,7 +465,19 @@ async def get_activity_log(
         query += " AND al.item_type = %s"
         params.append(item_type)
 
-    query += " ORDER BY al.created_at DESC LIMIT %s OFFSET %s"
+    if db_type == 'sqlite':
+        # Complete SQLite query
+        query += """
+            )
+            SELECT *, (SELECT COUNT(*) FROM activity_log) as total_count
+            FROM activity_data
+            ORDER BY created_at DESC
+            LIMIT %s OFFSET %s
+        """
+    else:
+        # Complete MySQL query
+        query += " ORDER BY al.created_at DESC LIMIT %s OFFSET %s"
+
     params.extend([limit, offset])
 
     activities = execute_query(query, params, fetch=True)
@@ -477,25 +562,47 @@ async def get_usage_report(
         current_user: dict = Depends(require_admin)
 ):
     """Get usage report for specified number of days"""
-    # This would typically include more complex queries for charts and graphs
-    # For now, returning a simplified version
+    # Check database type
+    db_type = os.getenv('DB_TYPE', 'sqlite').lower()
 
     report = {
         'period': f"Last {days} days",
-        'summary': {
-            'new_users': execute_one(
-                f"SELECT COUNT(*) as count FROM users WHERE created_at >= DATE_SUB(CURRENT_DATE, INTERVAL {days} DAY)"
-            )['count'] if execute_one("SELECT 1") else 0,
-            'new_books': execute_one(
-                f"SELECT COUNT(*) as count FROM books WHERE created_at >= DATE_SUB(CURRENT_DATE, INTERVAL {days} DAY)"
-            )['count'] if execute_one("SELECT 1") else 0,
-            'new_boardgames': execute_one(
-                f"SELECT COUNT(*) as count FROM board_games WHERE created_at >= DATE_SUB(CURRENT_DATE, INTERVAL {days} DAY)"
-            )['count'] if execute_one("SELECT 1") else 0,
-            'total_requests': execute_one(
-                f"SELECT COUNT(*) as count FROM requests WHERE request_date >= DATE_SUB(CURRENT_DATE, INTERVAL {days} DAY)"
-            )['count'] if execute_one("SELECT 1") else 0,
-        }
+        'summary': {}
     }
+
+    if db_type == 'sqlite':
+        # SQLite versions of the queries
+        report['summary']['new_users'] = execute_one(
+            f"SELECT COUNT(*) as count FROM users WHERE created_at >= datetime('now', '-{days} days')"
+        )['count']
+
+        report['summary']['new_books'] = execute_one(
+            f"SELECT COUNT(*) as count FROM books WHERE created_at >= datetime('now', '-{days} days')"
+        )['count']
+
+        report['summary']['new_boardgames'] = execute_one(
+            f"SELECT COUNT(*) as count FROM board_games WHERE created_at >= datetime('now', '-{days} days')"
+        )['count']
+
+        report['summary']['total_requests'] = execute_one(
+            f"SELECT COUNT(*) as count FROM requests WHERE request_date >= datetime('now', '-{days} days')"
+        )['count']
+    else:
+        # MySQL versions of the queries
+        report['summary']['new_users'] = execute_one(
+            f"SELECT COUNT(*) as count FROM users WHERE created_at >= DATE_SUB(CURRENT_DATE, INTERVAL {days} DAY)"
+        )['count']
+
+        report['summary']['new_books'] = execute_one(
+            f"SELECT COUNT(*) as count FROM books WHERE created_at >= DATE_SUB(CURRENT_DATE, INTERVAL {days} DAY)"
+        )['count']
+
+        report['summary']['new_boardgames'] = execute_one(
+            f"SELECT COUNT(*) as count FROM board_games WHERE created_at >= DATE_SUB(CURRENT_DATE, INTERVAL {days} DAY)"
+        )['count']
+
+        report['summary']['total_requests'] = execute_one(
+            f"SELECT COUNT(*) as count FROM requests WHERE request_date >= DATE_SUB(CURRENT_DATE, INTERVAL {days} DAY)"
+        )['count']
 
     return {"success": True, "data": report}

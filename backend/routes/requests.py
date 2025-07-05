@@ -12,7 +12,7 @@ router = APIRouter(prefix="/api/requests", tags=["requests"])
 
 
 class RequestCreate(BaseModel):
-    item_type: str = Field(..., regex="^(book|boardgame)$")
+    item_type: str = Field(..., pattern="^(book|boardgame)$")
     item_id: int = Field(..., gt=0)
     pickup_date: str = Field(..., description="Format: YYYY-MM-DD")
     return_date: str = Field(..., description="Format: YYYY-MM-DD")
@@ -27,9 +27,9 @@ class RequestUpdate(BaseModel):
 
 @router.get("/")
 async def get_requests(
-        status: Optional[str] = Query(None, regex="^(pending|approved|rejected|returned)$"),
-        type: Optional[str] = Query(None, regex="^(sent|received)$"),
-        item_type: Optional[str] = Query(None, regex="^(book|boardgame)$"),
+        status: Optional[str] = Query(None, pattern="^(pending|approved|rejected|returned)$"),
+        type: Optional[str] = Query(None, pattern="^(sent|received)$"),
+        item_type: Optional[str] = Query(None, pattern="^(book|boardgame)$"),
         limit: int = Query(20, ge=1, le=100),
         offset: int = Query(0, ge=0),
         current_user: dict = Depends(get_current_user)

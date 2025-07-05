@@ -7,6 +7,8 @@ from database import execute_query, execute_one
 from utils.jwt_handler import get_current_user
 from utils.validators import validate_isbn, sanitize_html
 
+# routes/books.py (Example)
+
 router = APIRouter(prefix="/api/books", tags=["books"])
 
 
@@ -99,10 +101,7 @@ async def get_books(
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
-async def create_book(
-        book: BookCreate,
-        current_user: dict = Depends(get_current_user)
-):
+async def create_book( book: BookCreate, current_user: dict = Depends(get_current_user)):
     """Create a new book"""
     # Validate ISBN if provided
     if book.isbn and not validate_isbn(book.isbn):

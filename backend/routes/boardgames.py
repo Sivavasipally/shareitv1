@@ -7,7 +7,7 @@ from database import execute_query, execute_one
 from utils.jwt_handler import get_current_user
 from utils.validators import sanitize_html
 
-router = APIRouter(prefix="/api/boardgames", tags=["boardgames"])
+router = APIRouter(prefix="/boardgames", tags=["boardgames"])
 
 
 class BoardGameCreate(BaseModel):
@@ -16,7 +16,7 @@ class BoardGameCreate(BaseModel):
     min_players: Optional[int] = Field(None, ge=1, le=20)
     max_players: Optional[int] = Field(None, ge=1, le=20)
     play_time: Optional[str] = Field(None, max_length=50)
-    complexity: Optional[str] = Field(None, regex="^(Easy|Medium|Hard)$")
+    complexity: Optional[str] = Field(None, pattern="^(Easy|Medium|Hard)$")
     description: Optional[str] = Field(None, max_length=2000)
     image_url: Optional[str] = Field(None, max_length=500)
     categories: Optional[List[str]] = []
@@ -29,7 +29,7 @@ class BoardGameUpdate(BaseModel):
     min_players: Optional[int] = Field(None, ge=1, le=20)
     max_players: Optional[int] = Field(None, ge=1, le=20)
     play_time: Optional[str] = Field(None, max_length=50)
-    complexity: Optional[str] = Field(None, regex="^(Easy|Medium|Hard)$")
+    complexity: Optional[str] = Field(None, pattern="^(Easy|Medium|Hard)$")
     description: Optional[str] = Field(None, max_length=2000)
     image_url: Optional[str] = Field(None, max_length=500)
     categories: Optional[List[str]] = None
@@ -40,7 +40,7 @@ class BoardGameUpdate(BaseModel):
 @router.get("/")
 async def get_boardgames(
         search: Optional[str] = Query(None, description="Search in title or designer"),
-        complexity: Optional[str] = Query(None, regex="^(Easy|Medium|Hard)$"),
+        complexity: Optional[str] = Query(None, pattern="^(Easy|Medium|Hard)$"),
         available: Optional[bool] = Query(None, description="Filter by availability"),
         min_players: Optional[int] = Query(None, ge=1),
         max_players: Optional[int] = Query(None, le=20),
