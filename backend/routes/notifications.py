@@ -8,6 +8,17 @@ from utils.jwt_handler import get_current_user
 router = APIRouter(prefix="/api/notifications", tags=["notifications"])
 
 
+def safe_format_datetime(dt_value):
+    """Safely format datetime values to ISO format"""
+    if dt_value is None:
+        return None
+    if isinstance(dt_value, str):
+        return dt_value  # Already a string
+    if isinstance(dt_value, datetime):
+        return dt_value.isoformat()
+    return str(dt_value)
+
+
 @router.get("/")
 async def get_notifications(
         is_read: Optional[bool] = Query(None, description="Filter by read status"),
@@ -43,10 +54,9 @@ async def get_notifications(
         (current_user['id'],)
     )['count']
 
-    # Format dates and remove count
+    # Format dates and remove count safely
     for notification in notifications:
-        if isinstance(notification['created_at'], datetime):
-            notification['created_at'] = notification['created_at'].isoformat()
+        notification['created_at'] = safe_format_datetime(notification.get('created_at'))
         notification.pop('total_count', None)
 
     return {
@@ -57,6 +67,7 @@ async def get_notifications(
         "limit": limit,
         "offset": offset
     }
+
 
 @router.put("/{notification_id}/read")
 async def mark_notification_read(

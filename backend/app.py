@@ -23,6 +23,7 @@ from routes import (
     notifications_router,
     search_router
 )
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -36,7 +37,24 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     # Startup
     logger.info("Starting Share-IT API...")
-    logger.info("Database initialization completed")
+    
+    # Initialize database
+    try:
+        from database import init_database
+        init_database()
+        logger.info("Database initialization completed")
+    except Exception as e:
+        logger.error(f"Database initialization failed: {e}")
+        raise
+    
+    # Create admin user
+    try:
+        from auth import AuthService
+        AuthService.create_admin_user()
+        logger.info("Admin user check completed")
+    except Exception as e:
+        logger.error(f"Admin user creation failed: {e}")
+    
     logger.info("API is ready to accept requests")
     yield
     # Shutdown
@@ -64,6 +82,8 @@ app.add_middleware(
         "http://localhost:4200",  # Angular
         "http://localhost:5000",  # Flask
         "http://localhost:8501",  # Streamlit
+        "http://127.0.0.1:5173",  # Vite with 127.0.0.1
+        "http://127.0.0.1:3000",  # Create React App with 127.0.0.1
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -148,7 +168,7 @@ async def log_requests(request: Request, call_next):
     return response
 
 
-# Include routers (routers already have their own prefixes defined)
+# Include routers with proper prefixes
 app.include_router(users_router, tags=["Authentication"])
 app.include_router(books_router, tags=["Books"])
 app.include_router(boardgames_router, tags=["Board Games"])
@@ -181,7 +201,8 @@ async def root():
             "requests": "/api/requests",
             "admin": "/api/admin",
             "activity": "/api/activity",
-            "notifications": "/api/notifications"
+            "notifications": "/api/notifications",
+            "search": "/api/search"
         },
         "status": "online",
         "timestamp": time.time()
@@ -209,9 +230,7 @@ async def api_health_check():
     """
     API health check endpoint
     """
-    # You can add database connectivity check here
     try:
-        # Test database connection
         from database import execute_one
         db_check = execute_one("SELECT 1 as health_check")
         db_status = "connected" if db_check else "disconnected"
@@ -267,30 +286,6 @@ async def api_info():
     }
 
 
-# Custom 404 handler
-@app.get("/api/{path:path}", tags=["General"])
-async def catch_all(path: str):
-    """
-    Catch all undefined API routes
-    """
-    return JSONResponse(
-        status_code=404,
-        content={
-            "success": False,
-            "detail": f"Endpoint '/api/{path}' not found",
-            "available_endpoints": [
-                "/api/auth",
-                "/api/books",
-                "/api/boardgames",
-                "/api/requests",
-                "/api/admin",
-                "/api/activity",
-                "/api/notifications"
-            ]
-        }
-    )
-
-
 # If running directly (not recommended for production)
 if __name__ == "__main__":
     import uvicorn
@@ -298,7 +293,7 @@ if __name__ == "__main__":
     logger.info("Starting Share-IT API in development mode...")
     uvicorn.run(
         "app:app",
-        host="localhost",
+        host="0.0.0.0",
         port=8000,
         reload=True,
         log_level="info"

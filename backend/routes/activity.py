@@ -9,6 +9,17 @@ from utils.jwt_handler import get_current_user
 router = APIRouter(prefix="/api/activity", tags=["activity"])
 
 
+def safe_format_datetime(dt_value):
+    """Safely format datetime values to ISO format"""
+    if dt_value is None:
+        return None
+    if isinstance(dt_value, str):
+        return dt_value  # Already a string
+    if isinstance(dt_value, datetime):
+        return dt_value.isoformat()
+    return str(dt_value)
+
+
 @router.get("/")
 async def get_activity_log(
         user_id: Optional[int] = Query(None, description="Filter by user ID"),
@@ -54,11 +65,10 @@ async def get_activity_log(
 
     total = activities[0]['total_count'] if activities else 0
 
-    # Format data
+    # Format data safely
     for activity in activities:
-        # Format datetime
-        if isinstance(activity['created_at'], datetime):
-            activity['created_at'] = activity['created_at'].isoformat()
+        # Format datetime safely
+        activity['created_at'] = safe_format_datetime(activity.get('created_at'))
 
         # Parse details JSON
         if activity['details']:
@@ -76,6 +86,8 @@ async def get_activity_log(
         "limit": limit,
         "offset": offset
     }
+
+
 @router.get("/summary")
 async def get_activity_summary(
         days: int = Query(7, ge=1, le=90, description="Number of days to look back"),
@@ -147,10 +159,9 @@ async def get_activity_summary(
 
     recent_activities = execute_query(recent_query, params, fetch=True)
 
-    # Format recent activities
+    # Format recent activities safely
     for activity in recent_activities:
-        if isinstance(activity['created_at'], datetime):
-            activity['created_at'] = activity['created_at'].isoformat()
+        activity['created_at'] = safe_format_datetime(activity.get('created_at'))
         if activity['details']:
             try:
                 activity['details'] = json.loads(activity['details'])

@@ -2,12 +2,15 @@ from fastapi import APIRouter, HTTPException, Depends, status, Query
 from pydantic import BaseModel, Field
 from typing import Optional, List
 import json
+from datetime import datetime
 
 from database import execute_query, execute_one
 from utils.jwt_handler import get_current_user
 from utils.validators import sanitize_html
 
 router = APIRouter(prefix="/api/boardgames", tags=["boardgames"])
+
+
 class BoardGameCreate(BaseModel):
     title: str = Field(..., min_length=1, max_length=200)
     designer: Optional[str] = Field(None, max_length=100)
@@ -33,6 +36,17 @@ class BoardGameUpdate(BaseModel):
     categories: Optional[List[str]] = None
     components: Optional[List[str]] = None
     is_available: Optional[bool] = None
+
+
+def safe_format_datetime(dt_value):
+    """Safely format datetime values to ISO format"""
+    if dt_value is None:
+        return None
+    if isinstance(dt_value, str):
+        return dt_value  # Already a string
+    if isinstance(dt_value, datetime):
+        return dt_value.isoformat()
+    return str(dt_value)
 
 
 @router.get("/")
@@ -93,12 +107,12 @@ async def get_boardgames(
 
     total = games[0]['total_count'] if games else 0
 
-    # Parse JSON fields and format dates
+    # Parse JSON fields and format dates safely
     for game in games:
         game['categories'] = json.loads(game['categories']) if game['categories'] else []
         game['components'] = json.loads(game['components']) if game['components'] else []
-        game['created_at'] = game['created_at'].isoformat() if game['created_at'] else None
-        game['updated_at'] = game['updated_at'].isoformat() if game['updated_at'] else None
+        game['created_at'] = safe_format_datetime(game.get('created_at'))
+        game['updated_at'] = safe_format_datetime(game.get('updated_at'))
         game.pop('total_count', None)
 
     return {
@@ -176,8 +190,8 @@ async def get_boardgame(
 
     game['categories'] = json.loads(game['categories']) if game['categories'] else []
     game['components'] = json.loads(game['components']) if game['components'] else []
-    game['created_at'] = game['created_at'].isoformat() if game['created_at'] else None
-    game['updated_at'] = game['updated_at'].isoformat() if game['updated_at'] else None
+    game['created_at'] = safe_format_datetime(game.get('created_at'))
+    game['updated_at'] = safe_format_datetime(game.get('updated_at'))
 
     # Hide owner contact info if game is not available and user is not the owner
     if not game['is_available'] and game['owner_id'] != current_user['id']:
@@ -388,11 +402,11 @@ async def get_my_boardgames(
 
     games = execute_query(query, params, fetch=True)
 
-    # Parse JSON fields
+    # Parse JSON fields and format dates safely
     for game in games:
         game['categories'] = json.loads(game['categories']) if game['categories'] else []
         game['components'] = json.loads(game['components']) if game['components'] else []
-        game['created_at'] = game['created_at'].isoformat() if game['created_at'] else None
-        game['updated_at'] = game['updated_at'].isoformat() if game['updated_at'] else None
+        game['created_at'] = safe_format_datetime(game.get('created_at'))
+        game['updated_at'] = safe_format_datetime(game.get('updated_at'))
 
     return {"success": True, "data": games}

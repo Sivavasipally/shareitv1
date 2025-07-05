@@ -8,8 +8,6 @@ from database import execute_query, execute_one
 from utils.jwt_handler import get_current_user
 from utils.validators import validate_isbn, sanitize_html
 
-# routes/books.py (Example)
-
 router = APIRouter(prefix="/api/books", tags=["books"])
 
 
@@ -36,6 +34,17 @@ class BookUpdate(BaseModel):
     cover_url: Optional[str] = Field(None, max_length=500)
     tags: Optional[List[str]] = None
     is_available: Optional[bool] = None
+
+
+def safe_format_datetime(dt_value):
+    """Safely format datetime values to ISO format"""
+    if dt_value is None:
+        return None
+    if isinstance(dt_value, str):
+        return dt_value  # Already a string
+    if isinstance(dt_value, datetime):
+        return dt_value.isoformat()
+    return str(dt_value)
 
 
 @router.get("/")
@@ -85,13 +94,11 @@ async def get_books(
 
     total = books[0]['total_count'] if books else 0
 
-    # Parse JSON fields and format dates
+    # Parse JSON fields and format dates safely
     for book in books:
         book['tags'] = json.loads(book['tags']) if book.get('tags') else []
-        if isinstance(book.get('created_at'), datetime):
-            book['created_at'] = book['created_at'].isoformat()
-        if isinstance(book.get('updated_at'), datetime):
-            book['updated_at'] = book['updated_at'].isoformat()
+        book['created_at'] = safe_format_datetime(book.get('created_at'))
+        book['updated_at'] = safe_format_datetime(book.get('updated_at'))
         book.pop('total_count', None)
 
     return {
@@ -104,7 +111,10 @@ async def get_books(
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
-async def create_book( book: BookCreate, current_user: dict = Depends(get_current_user)):
+async def create_book(
+        book: BookCreate,
+        current_user: dict = Depends(get_current_user)
+):
     """Create a new book"""
     # Validate ISBN if provided
     if book.isbn and not validate_isbn(book.isbn):
@@ -161,10 +171,8 @@ async def get_book(
         raise HTTPException(status_code=404, detail="Book not found")
 
     book['tags'] = json.loads(book['tags']) if book.get('tags') else []
-    if isinstance(book.get('created_at'), datetime):
-        book['created_at'] = book['created_at'].isoformat()
-    if isinstance(book.get('updated_at'), datetime):
-        book['updated_at'] = book['updated_at'].isoformat()
+    book['created_at'] = safe_format_datetime(book.get('created_at'))
+    book['updated_at'] = safe_format_datetime(book.get('updated_at'))
 
     # Hide owner contact info if book is not available and user is not the owner
     if not book['is_available'] and book['owner_id'] != current_user['id']:
@@ -331,12 +339,10 @@ async def get_my_books(
 
     books = execute_query(query, params, fetch=True)
 
-    # Parse JSON fields and format dates
+    # Parse JSON fields and format dates safely
     for book in books:
         book['tags'] = json.loads(book['tags']) if book.get('tags') else []
-        if isinstance(book.get('created_at'), datetime):
-            book['created_at'] = book['created_at'].isoformat()
-        if isinstance(book.get('updated_at'), datetime):
-            book['updated_at'] = book['updated_at'].isoformat()
+        book['created_at'] = safe_format_datetime(book.get('created_at'))
+        book['updated_at'] = safe_format_datetime(book.get('updated_at'))
 
     return {"success": True, "data": books}
