@@ -1,0 +1,31 @@
+version: '3.8'
+
+# This file is OPTIONAL - only needed if you want to use MySQL instead of SQLite
+# To use MySQL:
+# 1. Change DB_TYPE=mysql in backend/.env
+# 2. Run: docker-compose up -d
+# 3. The MySQL database will be available on localhost:3306
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: share_it_mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: share_it_db
+      MYSQL_USER: share_it_user
+      MYSQL_PASSWORD: share_it_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot_password"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  mysql_data:
+    driver: local
