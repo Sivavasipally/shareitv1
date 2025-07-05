@@ -1,11 +1,172 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { BookOpen, Dice1 as Dice, CheckSquare, Bell, PlusCircle, TrendingUp, Users, Clock } from 'lucide-react';
+import { BookOpen, Dice1 as Dice, CheckSquare, Bell, PlusCircle, TrendingUp, Users, Clock, Loader, AlertCircle } from 'lucide-react';
 import StatCard from '../components/dashboard/StatCard';
 import RecentItem from '../components/dashboard/RecentItem';
 import ActivityItem from '../components/dashboard/ActivityItem';
+import apiService from '../services/api';
+
+interface DashboardStats {
+  books: {
+    total: number;
+    available: number;
+  };
+  boardgames: {
+    total: number;
+    available: number;
+  };
+  requests: {
+    total: number;
+    pending: number;
+  };
+  users: {
+    total: number;
+    active: number;
+  };
+}
 
 const Dashboard: React.FC = () => {
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [recentBooks, setRecentBooks] = useState<any[]>([]);
+  const [recentBoardGames, setRecentBoardGames] = useState<any[]>([]);
+  const [recentActivities, setRecentActivities] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      setError('');
+
+      // Fetch all data in parallel
+      const [statsResponse, booksResponse, boardGamesResponse, activitiesResponse] = await Promise.all([
+        apiService.getAdminStats().catch(() => ({ data: null })),
+        apiService.getBooks({ limit: 3 }),
+        apiService.getBoardGames({ limit: 3 }),
+        apiService.getActivityLog({ limit: 4 }).catch(() => ({ data: [] }))
+      ]);
+
+      // Process stats
+      if (statsResponse.data) {
+        setStats({
+          books: {
+            total: statsResponse.data.books?.total || 0,
+            available: statsResponse.data.books?.available || 0
+          },
+          boardgames: {
+            total: statsResponse.data.boardgames?.total || 0,
+            available: statsResponse.data.boardgames?.available || 0
+          },
+          requests: {
+            total: statsResponse.data.requests?.total || 0,
+            pending: statsResponse.data.requests?.pending || 0
+          },
+          users: {
+            total: statsResponse.data.users?.total || 0,
+            active: statsResponse.data.users?.active || 0
+          }
+        });
+      } else {
+        // Fallback: Calculate stats from books and board games data
+        const allBooksResponse = await apiService.getBooks({ limit: 100 });
+        const allBoardGamesResponse = await apiService.getBoardGames({ limit: 100 });
+
+        setStats({
+          books: {
+            total: allBooksResponse.data?.length || 0,
+            available: allBooksResponse.data?.filter(b => b.is_available).length || 0
+          },
+          boardgames: {
+            total: allBoardGamesResponse.data?.length || 0,
+            available: allBoardGamesResponse.data?.filter(g => g.is_available).length || 0
+          },
+          requests: {
+            total: 0,
+            pending: 0
+          },
+          users: {
+            total: 0,
+            active: 0
+          }
+        });
+      }
+
+      // Process recent books
+      setRecentBooks(booksResponse.data?.slice(0, 3) || []);
+
+      // Process recent board games
+      setRecentBoardGames(boardGamesResponse.data?.slice(0, 3) || []);
+
+      // Process recent activities
+      if (activitiesResponse.data && activitiesResponse.data.length > 0) {
+        setRecentActivities(activitiesResponse.data);
+      }
+
+    } catch (err) {
+      console.error('Error fetching dashboard data:', err);
+      setError('Failed to load dashboard data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatTimeAgo = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+    if (diffInSeconds < 60) return 'just now';
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} minutes ago`;
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`;
+    if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)} days ago`;
+    return date.toLocaleDateString();
+  };
+
+  const getActivityIcon = (action: string) => {
+    switch (action) {
+      case 'added':
+      case 'created':
+        return <PlusCircle size={16} className="text-purple-500" />;
+      case 'borrowed':
+      case 'requested':
+        return <Bell size={16} className="text-amber-500" />;
+      case 'returned':
+      case 'approved':
+        return <CheckSquare size={16} className="text-green-500" />;
+      default:
+        return <Clock size={16} className="text-blue-500" />;
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader className="animate-spin h-8 w-8 text-blue-500" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+          <p className="text-gray-700">{error}</p>
+          <button
+            onClick={fetchDashboardData}
+            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -38,30 +199,30 @@ const Dashboard: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Total Books"
-          value="243"
+          value={stats?.books.total.toString() || '0'}
           icon={<BookOpen size={20} />}
-          trend="+5% from last month"
+          trend={`${stats?.books.available || 0} available`}
           color="bg-blue-800"
         />
         <StatCard
           title="Board Games"
-          value="87"
+          value={stats?.boardgames.total.toString() || '0'}
           icon={<Dice size={20} />}
-          trend="+3% from last month"
+          trend={`${stats?.boardgames.available || 0} available`}
           color="bg-purple-700"
         />
         <StatCard
           title="Pending Requests"
-          value="12"
+          value={stats?.requests.pending.toString() || '0'}
           icon={<CheckSquare size={20} />}
-          trend="4 new today"
+          trend={`${stats?.requests.total || 0} total requests`}
           color="bg-amber-600"
         />
         <StatCard
           title="Active Users"
-          value="156"
+          value={stats?.users.active.toString() || '0'}
           icon={<Users size={20} />}
-          trend="10 new this week"
+          trend={`${stats?.users.total || 0} total users`}
           color="bg-emerald-600"
         />
       </div>
@@ -75,24 +236,19 @@ const Dashboard: React.FC = () => {
             <Link to="/books" className="text-sm text-blue-700 hover:text-blue-900 hover:underline transition-colors">View all</Link>
           </div>
           <div className="space-y-4">
-            <RecentItem
-              title="The Midnight Library"
-              author="Matt Haig"
-              image="https://images.pexels.com/photos/1179229/pexels-photo-1179229.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2"
-              status="Available"
-            />
-            <RecentItem
-              title="Atomic Habits"
-              author="James Clear"
-              image="https://images.pexels.com/photos/3747139/pexels-photo-3747139.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2"
-              status="Checked Out"
-            />
-            <RecentItem
-              title="Dune"
-              author="Frank Herbert"
-              image="https://images.pexels.com/photos/2908984/pexels-photo-2908984.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2"
-              status="Available"
-            />
+            {recentBooks.length > 0 ? (
+              recentBooks.map((book) => (
+                <RecentItem
+                  key={book.id}
+                  title={book.title}
+                  author={book.author}
+                  image={book.cover_url || "https://images.pexels.com/photos/1179229/pexels-photo-1179229.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2"}
+                  status={book.is_available ? "Available" : "Checked Out"}
+                />
+              ))
+            ) : (
+              <p className="text-sm text-gray-500">No books added yet</p>
+            )}
           </div>
         </div>
 
@@ -103,24 +259,19 @@ const Dashboard: React.FC = () => {
             <Link to="/board-games" className="text-sm text-blue-700 hover:text-blue-900 hover:underline transition-colors">View all</Link>
           </div>
           <div className="space-y-4">
-            <RecentItem
-              title="Catan"
-              author="Klaus Teuber"
-              image="https://images.pexels.com/photos/2309234/pexels-photo-2309234.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2"
-              status="Available"
-            />
-            <RecentItem
-              title="Ticket to Ride"
-              author="Alan R. Moon"
-              image="https://images.pexels.com/photos/6333080/pexels-photo-6333080.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2"
-              status="Checked Out"
-            />
-            <RecentItem
-              title="Pandemic"
-              author="Matt Leacock"
-              image="https://images.pexels.com/photos/6686455/pexels-photo-6686455.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2"
-              status="Available"
-            />
+            {recentBoardGames.length > 0 ? (
+              recentBoardGames.map((game) => (
+                <RecentItem
+                  key={game.id}
+                  title={game.title}
+                  author={game.designer || "Unknown Designer"}
+                  image={game.image_url || "https://images.pexels.com/photos/2309234/pexels-photo-2309234.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2"}
+                  status={game.is_available ? "Available" : "Checked Out"}
+                />
+              ))
+            ) : (
+              <p className="text-sm text-gray-500">No board games added yet</p>
+            )}
           </div>
         </div>
 
@@ -131,34 +282,20 @@ const Dashboard: React.FC = () => {
             <Link to="/activity" className="text-sm text-blue-700 hover:text-blue-900 hover:underline transition-colors">View all</Link>
           </div>
           <div className="space-y-4">
-            <ActivityItem
-              user="Sarah Johnson"
-              action="checked out"
-              item="The Midnight Library"
-              time="2 hours ago"
-              icon={<Clock size={16} className="text-blue-500" />}
-            />
-            <ActivityItem
-              user="Mark Wilson"
-              action="returned"
-              item="Catan"
-              time="5 hours ago"
-              icon={<CheckSquare size={16} className="text-green-500" />}
-            />
-            <ActivityItem
-              user="Admin"
-              action="added"
-              item="Atomic Habits"
-              time="1 day ago"
-              icon={<PlusCircle size={16} className="text-purple-500" />}
-            />
-            <ActivityItem
-              user="Jessica Miller"
-              action="requested"
-              item="Pandemic"
-              time="2 days ago"
-              icon={<Bell size={16} className="text-amber-500" />}
-            />
+            {recentActivities.length > 0 ? (
+              recentActivities.map((activity) => (
+                <ActivityItem
+                  key={activity.id}
+                  user={activity.username || 'Unknown User'}
+                  action={activity.action}
+                  item={activity.details?.title || `${activity.item_type} #${activity.item_id}`}
+                  time={formatTimeAgo(activity.created_at)}
+                  icon={getActivityIcon(activity.action)}
+                />
+              ))
+            ) : (
+              <p className="text-sm text-gray-500">No recent activity</p>
+            )}
           </div>
         </div>
       </div>

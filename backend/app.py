@@ -18,9 +18,11 @@ from routes import (
     books_router,
     boardgames_router,
     requests_router,
-    admin_router
+    admin_router,
+    activity_router,
+    notifications_router,
+    search_router
 )
-
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -152,6 +154,9 @@ app.include_router(books_router, tags=["Books"])
 app.include_router(boardgames_router, tags=["Board Games"])
 app.include_router(requests_router, tags=["Requests"])
 app.include_router(admin_router, tags=["Admin"])
+app.include_router(activity_router, tags=["Activity"])
+app.include_router(notifications_router, tags=["Notifications"])
+app.include_router(search_router, tags=["Search"])
 
 
 # Root endpoint
@@ -174,7 +179,9 @@ async def root():
             "books": "/api/books",
             "boardgames": "/api/boardgames",
             "requests": "/api/requests",
-            "admin": "/api/admin"
+            "admin": "/api/admin",
+            "activity": "/api/activity",
+            "notifications": "/api/notifications"
         },
         "status": "online",
         "timestamp": time.time()
@@ -276,7 +283,9 @@ async def catch_all(path: str):
                 "/api/books",
                 "/api/boardgames",
                 "/api/requests",
-                "/api/admin"
+                "/api/admin",
+                "/api/activity",
+                "/api/notifications"
             ]
         }
     )
