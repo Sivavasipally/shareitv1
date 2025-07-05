@@ -17,14 +17,14 @@ const Dashboard: React.FC = () => {
               Add New Item
             </button>
             <div className="dropdown-menu absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 hidden group-hover:block">
-              <Link 
-                to="/add-book" 
+              <Link
+                to="/add-book"
                 className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
               >
                 Add Book
               </Link>
-              <Link 
-                to="/add-board-game" 
+              <Link
+                to="/add-board-game"
                 className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
               >
                 Add Board Game
@@ -36,30 +36,30 @@ const Dashboard: React.FC = () => {
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard 
-          title="Total Books" 
-          value="243" 
-          icon={<BookOpen size={20} />} 
+        <StatCard
+          title="Total Books"
+          value="243"
+          icon={<BookOpen size={20} />}
           trend="+5% from last month"
           color="bg-blue-800"
         />
-        <StatCard 
-          title="Board Games" 
-          value="87" 
+        <StatCard
+          title="Board Games"
+          value="87"
           icon={<Dice size={20} />}
           trend="+3% from last month"
           color="bg-purple-700"
         />
-        <StatCard 
-          title="Pending Requests" 
-          value="12" 
+        <StatCard
+          title="Pending Requests"
+          value="12"
           icon={<CheckSquare size={20} />}
           trend="4 new today"
           color="bg-amber-600"
         />
-        <StatCard 
-          title="Active Users" 
-          value="156" 
+        <StatCard
+          title="Active Users"
+          value="156"
           icon={<Users size={20} />}
           trend="10 new this week"
           color="bg-emerald-600"
@@ -75,20 +75,20 @@ const Dashboard: React.FC = () => {
             <Link to="/books" className="text-sm text-blue-700 hover:text-blue-900 hover:underline transition-colors">View all</Link>
           </div>
           <div className="space-y-4">
-            <RecentItem 
-              title="The Midnight Library" 
+            <RecentItem
+              title="The Midnight Library"
               author="Matt Haig"
               image="https://images.pexels.com/photos/1179229/pexels-photo-1179229.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2"
               status="Available"
             />
-            <RecentItem 
-              title="Atomic Habits" 
+            <RecentItem
+              title="Atomic Habits"
               author="James Clear"
               image="https://images.pexels.com/photos/3747139/pexels-photo-3747139.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2"
               status="Checked Out"
             />
-            <RecentItem 
-              title="Dune" 
+            <RecentItem
+              title="Dune"
               author="Frank Herbert"
               image="https://images.pexels.com/photos/2908984/pexels-photo-2908984.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2"
               status="Available"
@@ -103,20 +103,20 @@ const Dashboard: React.FC = () => {
             <Link to="/board-games" className="text-sm text-blue-700 hover:text-blue-900 hover:underline transition-colors">View all</Link>
           </div>
           <div className="space-y-4">
-            <RecentItem 
-              title="Catan" 
+            <RecentItem
+              title="Catan"
               author="Klaus Teuber"
               image="https://images.pexels.com/photos/2309234/pexels-photo-2309234.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2"
               status="Available"
             />
-            <RecentItem 
-              title="Ticket to Ride" 
+            <RecentItem
+              title="Ticket to Ride"
               author="Alan R. Moon"
               image="https://images.pexels.com/photos/6333080/pexels-photo-6333080.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2"
               status="Checked Out"
             />
-            <RecentItem 
-              title="Pandemic" 
+            <RecentItem
+              title="Pandemic"
               author="Matt Leacock"
               image="https://images.pexels.com/photos/6686455/pexels-photo-6686455.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2"
               status="Available"
@@ -131,28 +131,28 @@ const Dashboard: React.FC = () => {
             <Link to="/activity" className="text-sm text-blue-700 hover:text-blue-900 hover:underline transition-colors">View all</Link>
           </div>
           <div className="space-y-4">
-            <ActivityItem 
+            <ActivityItem
               user="Sarah Johnson"
               action="checked out"
               item="The Midnight Library"
               time="2 hours ago"
               icon={<Clock size={16} className="text-blue-500" />}
             />
-            <ActivityItem 
+            <ActivityItem
               user="Mark Wilson"
               action="returned"
               item="Catan"
               time="5 hours ago"
               icon={<CheckSquare size={16} className="text-green-500" />}
             />
-            <ActivityItem 
+            <ActivityItem
               user="Admin"
               action="added"
               item="Atomic Habits"
               time="1 day ago"
               icon={<PlusCircle size={16} className="text-purple-500" />}
             />
-            <ActivityItem 
+            <ActivityItem
               user="Jessica Miller"
               action="requested"
               item="Pandemic"

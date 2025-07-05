@@ -1,16 +1,39 @@
-import React, { useState } from 'react';
-import { 
-  Search, 
-  Filter, 
-  PlusCircle, 
-  SortDesc, 
-  Grid, 
+import React, { useState, useEffect } from 'react';
+import {
+  Search,
+  Filter,
+  PlusCircle,
+  SortDesc,
+  Grid,
   List,
-  ChevronDown
+  ChevronDown,
+  Loader,
+  AlertCircle
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import apiService from '../services/api';
+import { useUser } from '../context/UserContext';
+
+interface Book {
+  id: number;
+  title: string;
+  author: string;
+  isbn?: string;
+  genre?: string;
+  publication_year?: number;
+  language?: string;
+  description?: string;
+  cover_url?: string;
+  owner_id: number;
+  owner_name: string;
+  is_available: boolean;
+  tags: string[];
+  created_at: string;
+  updated_at: string;
+}
 
 const Books: React.FC = () => {
+  const { user } = useUser();
   const [view, setView] = useState<'grid' | 'list'>('grid');
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
@@ -19,49 +42,119 @@ const Books: React.FC = () => {
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [sortBy, setSortBy] = useState('title');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [books, setBooks] = useState<Book[]>([]);
+  const [genres, setGenres] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  // Sample data
-  const books = [
-    {
-      id: 1,
-      title: 'The Midnight Library',
-      author: 'Matt Haig',
-      genre: 'Fiction',
-      year: 2020,
-      status: 'Available',
-      image: 'https://images.pexels.com/photos/1179229/pexels-photo-1179229.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2'
-    },
-    // ... (rest of the books data)
-  ];
+  useEffect(() => {
+    fetchBooks();
+    fetchGenres();
+  }, [searchTerm, selectedGenre, selectedStatus]);
 
-  const filteredBooks = books
-    .filter(book => {
-      const matchesSearch = book.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          book.author.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesGenre = selectedGenre === 'all' || book.genre === selectedGenre;
-      const matchesStatus = selectedStatus === 'all' || book.status === selectedStatus;
-      return matchesSearch && matchesGenre && matchesStatus;
-    })
-    .sort((a, b) => {
-      const order = sortOrder === 'asc' ? 1 : -1;
-      switch (sortBy) {
-        case 'title':
-          return order * a.title.localeCompare(b.title);
-        case 'author':
-          return order * a.author.localeCompare(b.author);
-        case 'year':
-          return order * (a.year - b.year);
-        default:
-          return 0;
+  const fetchBooks = async () => {
+    try {
+      setLoading(true);
+      setError('');
+
+      const params: any = {
+        limit: 50,
+        offset: 0
+      };
+
+      if (searchTerm) {
+        params.search = searchTerm;
       }
-    });
+      if (selectedGenre !== 'all') {
+        params.genre = selectedGenre;
+      }
+      if (selectedStatus !== 'all') {
+        params.available = selectedStatus === 'available';
+      }
+
+      const response = await apiService.getBooks(params);
+      setBooks(response.data || []);
+    } catch (err) {
+      console.error('Error fetching books:', err);
+      setError('Failed to load books. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchGenres = async () => {
+    try {
+      const response = await apiService.get('/books/genres/list');
+      const genreList = response.data.map((g: any) => g.genre).filter(Boolean);
+      setGenres(genreList);
+    } catch (err) {
+      console.error('Error fetching genres:', err);
+    }
+  };
+
+  const handleRequest = async (bookId: number) => {
+    try {
+      const requestData = {
+        item_type: 'book',
+        item_id: bookId,
+        pickup_date: new Date().toISOString().split('T')[0],
+        return_date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        notes: 'Request from books page'
+      };
+
+      await apiService.createRequest(requestData);
+      alert('Request sent successfully!');
+      fetchBooks(); // Refresh the list
+    } catch (err: any) {
+      alert(err.response?.data?.detail || 'Failed to send request');
+    }
+  };
+
+  const sortedBooks = [...books].sort((a, b) => {
+    const order = sortOrder === 'asc' ? 1 : -1;
+    switch (sortBy) {
+      case 'title':
+        return order * a.title.localeCompare(b.title);
+      case 'author':
+        return order * a.author.localeCompare(b.author);
+      case 'year':
+        return order * ((a.publication_year || 0) - (b.publication_year || 0));
+      default:
+        return 0;
+    }
+  });
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader className="animate-spin h-8 w-8 text-blue-500" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+          <p className="text-gray-700">{error}</p>
+          <button
+            onClick={fetchBooks}
+            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-800">Books</h1>
         <div className="flex space-x-2">
-          <Link 
+          <Link
             to="/add-book"
             className="px-4 py-2 bg-blue-800 text-white rounded-md hover:bg-blue-900 transition-colors duration-150 flex items-center text-sm"
           >
@@ -80,16 +173,16 @@ const Books: React.FC = () => {
           <input
             type="text"
             className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-gray-50 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white sm:text-sm transition-colors duration-200"
-            placeholder="Search books by title, author, or genre..."
+            placeholder="Search books by title or author..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        
+
         <div className="flex space-x-2">
           {/* Filter Button */}
           <div className="relative">
-            <button 
+            <button
               className="px-4 py-2 bg-white border border-gray-300 rounded-md text-gray-700 flex items-center text-sm hover:bg-gray-50 transition-colors"
               onClick={() => setShowFilters(!showFilters)}
             >
@@ -97,7 +190,7 @@ const Books: React.FC = () => {
               Filter
               <ChevronDown size={16} className="ml-2 text-gray-500" />
             </button>
-            
+
             {showFilters && (
               <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-1 z-50">
                 <div className="px-4 py-2 border-b border-gray-200">
@@ -108,10 +201,9 @@ const Books: React.FC = () => {
                     className="mt-1 block w-full text-sm border-gray-300 rounded-md"
                   >
                     <option value="all">All Genres</option>
-                    <option value="Fiction">Fiction</option>
-                    <option value="Non-Fiction">Non-Fiction</option>
-                    <option value="Science Fiction">Science Fiction</option>
-                    <option value="Fantasy">Fantasy</option>
+                    {genres.map(genre => (
+                      <option key={genre} value={genre}>{genre}</option>
+                    ))}
                   </select>
                 </div>
                 <div className="px-4 py-2">
@@ -122,8 +214,8 @@ const Books: React.FC = () => {
                     className="mt-1 block w-full text-sm border-gray-300 rounded-md"
                   >
                     <option value="all">All Status</option>
-                    <option value="Available">Available</option>
-                    <option value="Checked Out">Checked Out</option>
+                    <option value="available">Available</option>
+                    <option value="checked-out">Checked Out</option>
                   </select>
                 </div>
               </div>
@@ -132,7 +224,7 @@ const Books: React.FC = () => {
 
           {/* Sort Button */}
           <div className="relative">
-            <button 
+            <button
               className="px-4 py-2 bg-white border border-gray-300 rounded-md text-gray-700 flex items-center text-sm hover:bg-gray-50 transition-colors"
               onClick={() => setShowSort(!showSort)}
             >
@@ -140,7 +232,7 @@ const Books: React.FC = () => {
               Sort
               <ChevronDown size={16} className="ml-2 text-gray-500" />
             </button>
-            
+
             {showSort && (
               <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-1 z-50">
                 <button
@@ -176,13 +268,13 @@ const Books: React.FC = () => {
 
           {/* View Toggle */}
           <div className="bg-white border border-gray-300 rounded-md flex">
-            <button 
+            <button
               className={`p-2 ${view === 'grid' ? 'bg-gray-100 text-blue-800' : 'text-gray-500 hover:bg-gray-50'}`}
               onClick={() => setView('grid')}
             >
               <Grid size={16} />
             </button>
-            <button 
+            <button
               className={`p-2 ${view === 'list' ? 'bg-gray-100 text-blue-800' : 'text-gray-500 hover:bg-gray-50'}`}
               onClick={() => setView('list')}
             >
@@ -195,28 +287,53 @@ const Books: React.FC = () => {
       {/* Books Grid/List */}
       {view === 'grid' ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {filteredBooks.map(book => (
+          {sortedBooks.map(book => (
             <div key={book.id} className="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-200">
-              <div className="h-40 overflow-hidden">
-                <img src={book.image} alt={book.title} className="w-full h-full object-cover transition-transform duration-300 hover:scale-105" />
+              <div className="h-40 overflow-hidden bg-gray-100">
+                {book.cover_url ? (
+                  <img
+                    src={book.cover_url}
+                    alt={book.title}
+                    className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <BookOpen size={48} className="text-gray-400" />
+                  </div>
+                )}
               </div>
               <div className="p-4">
                 <div className="flex justify-between items-start">
-                  <h3 className="text-md font-semibold text-gray-800">{book.title}</h3>
-                  <span 
+                  <h3 className="text-md font-semibold text-gray-800 line-clamp-1">{book.title}</h3>
+                  <span
                     className={`text-xs rounded-full px-2 py-1 ${
-                      book.status === 'Available' 
-                        ? 'bg-green-100 text-green-800' 
+                      book.is_available
+                        ? 'bg-green-100 text-green-800'
                         : 'bg-amber-100 text-amber-800'
                     }`}
                   >
-                    {book.status}
+                    {book.is_available ? 'Available' : 'Checked Out'}
                   </span>
                 </div>
                 <p className="text-sm text-gray-500 mt-1">{book.author}</p>
                 <div className="mt-2 flex justify-between items-center">
-                  <span className="text-xs bg-gray-100 text-gray-700 rounded-full px-2 py-1">{book.genre}</span>
-                  <span className="text-xs text-gray-500">{book.year}</span>
+                  {book.genre && (
+                    <span className="text-xs bg-gray-100 text-gray-700 rounded-full px-2 py-1">{book.genre}</span>
+                  )}
+                  {book.publication_year && (
+                    <span className="text-xs text-gray-500">{book.publication_year}</span>
+                  )}
+                </div>
+                <div className="mt-3 flex justify-between items-center">
+                  <p className="text-xs text-gray-500">by {book.owner_name}</p>
+                  {book.is_available && book.owner_id !== user?.id && (
+                    <button
+                      onClick={() => handleRequest(book.id)}
+                      className="text-xs px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                    >
+                      Request
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -237,17 +354,29 @@ const Books: React.FC = () => {
                   Year
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Owner
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Action
                 </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredBooks.map(book => (
+              {sortedBooks.map(book => (
                 <tr key={book.id} className="hover:bg-gray-50 transition-colors duration-150">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <div className="h-10 w-10 flex-shrink-0">
-                        <img className="h-10 w-10 rounded object-cover" src={book.image} alt={book.title} />
+                        {book.cover_url ? (
+                          <img className="h-10 w-10 rounded object-cover" src={book.cover_url} alt={book.title} />
+                        ) : (
+                          <div className="h-10 w-10 rounded bg-gray-100 flex items-center justify-center">
+                            <BookOpen size={20} className="text-gray-400" />
+                          </div>
+                        )}
                       </div>
                       <div className="ml-4">
                         <div className="text-sm font-medium text-gray-900">{book.title}</div>
@@ -256,26 +385,48 @@ const Books: React.FC = () => {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{book.genre}</div>
+                    <div className="text-sm text-gray-900">{book.genre || '-'}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{book.year}</div>
+                    <div className="text-sm text-gray-900">{book.publication_year || '-'}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span 
+                    <div className="text-sm text-gray-900">{book.owner_name}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span
                       className={`px-2 py-1 text-xs rounded-full ${
-                        book.status === 'Available' 
-                          ? 'bg-green-100 text-green-800' 
+                        book.is_available
+                          ? 'bg-green-100 text-green-800'
                           : 'bg-amber-100 text-amber-800'
                       }`}
                     >
-                      {book.status}
+                      {book.is_available ? 'Available' : 'Checked Out'}
                     </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {book.is_available && book.owner_id !== user?.id ? (
+                      <button
+                        onClick={() => handleRequest(book.id)}
+                        className="text-sm text-blue-600 hover:text-blue-800"
+                      >
+                        Request
+                      </button>
+                    ) : (
+                      <span className="text-sm text-gray-400">-</span>
+                    )}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {sortedBooks.length === 0 && (
+        <div className="text-center py-12">
+          <BookOpen size={48} className="mx-auto text-gray-400 mb-4" />
+          <p className="text-gray-500">No books found matching your criteria.</p>
         </div>
       )}
     </div>
