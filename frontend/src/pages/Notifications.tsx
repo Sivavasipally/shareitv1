@@ -1,86 +1,89 @@
-import React, { useState } from 'react';
-import { Bell, CheckCircle, AlertCircle, Clock, XCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Bell, CheckCircle, AlertCircle, Clock, XCircle, Loader } from 'lucide-react';
+import apiService from '../services/api';
 
 interface Notification {
   id: number;
   title: string;
   message: string;
-  time: string;
-  read: boolean;
   type: 'info' | 'success' | 'warning' | 'error';
+  is_read: boolean;
+  created_at: string;
 }
 
 const Notifications: React.FC = () => {
-  const [notifications, setNotifications] = useState<Notification[]>([
-    {
-      id: 1,
-      title: 'Request Approved',
-      message: 'Your request for "The Midnight Library" has been approved.',
-      time: '2 hours ago',
-      read: false,
-      type: 'success'
-    },
-    {
-      id: 2,
-      title: 'Overdue Return',
-      message: 'The board game "Catan" is overdue. Please return it as soon as possible.',
-      time: '1 day ago',
-      read: false,
-      type: 'warning'
-    },
-    {
-      id: 3,
-      title: 'New Book Added',
-      message: 'A new book "Atomic Habits" has been added to the library.',
-      time: '2 days ago',
-      read: true,
-      type: 'info'
-    },
-    {
-      id: 4,
-      title: 'Request Denied',
-      message: 'Your request for "Pandemic" has been denied due to high demand.',
-      time: '3 days ago',
-      read: true,
-      type: 'error'
-    },
-    {
-      id: 5,
-      title: 'Reminder',
-      message: 'Your borrowed item "Dune" is due in 2 days.',
-      time: '3 days ago',
-      read: true,
-      type: 'info'
-    },
-  ]);
-
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
+  const [loading, setLoading] = useState(true);
+  const [unreadCount, setUnreadCount] = useState(0);
 
-  const markAsRead = (id: number) => {
-    setNotifications(prevNotifications =>
-      prevNotifications.map(notification =>
-        notification.id === id ? { ...notification, read: true } : notification
-      )
-    );
+  useEffect(() => {
+    fetchNotifications();
+  }, [filter]);
+
+  const fetchNotifications = async () => {
+    try {
+      setLoading(true);
+      const params = filter === 'unread' ? { is_read: false } : {};
+      const response = await apiService.getNotifications(params);
+      
+      setNotifications(response.data || []);
+      setUnreadCount(response.unread_count || 0);
+    } catch (err) {
+      console.error('Error fetching notifications:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const markAllAsRead = () => {
-    setNotifications(prevNotifications =>
-      prevNotifications.map(notification => ({ ...notification, read: true }))
-    );
+  const markAsRead = async (id: number) => {
+    try {
+      await apiService.markNotificationRead(id);
+      setNotifications(prevNotifications =>
+        prevNotifications.map(notification =>
+          notification.id === id ? { ...notification, is_read: true } : notification
+        )
+      );
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    } catch (err) {
+      console.error('Error marking notification as read:', err);
+    }
   };
 
-  const deleteNotification = (id: number) => {
-    setNotifications(prevNotifications =>
-      prevNotifications.filter(notification => notification.id !== id)
-    );
+  const markAllAsRead = async () => {
+    try {
+      await apiService.markAllNotificationsRead();
+      setNotifications(prevNotifications =>
+        prevNotifications.map(notification => ({ ...notification, is_read: true }))
+      );
+      setUnreadCount(0);
+    } catch (err) {
+      console.error('Error marking all notifications as read:', err);
+    }
   };
 
-  const filteredNotifications = filter === 'all'
-    ? notifications
-    : notifications.filter(notification => !notification.read);
+  const deleteNotification = async (id: number) => {
+    try {
+      await apiService.deleteNotification(id);
+      setNotifications(prevNotifications =>
+        prevNotifications.filter(notification => notification.id !== id)
+      );
+    } catch (err) {
+      console.error('Error deleting notification:', err);
+    }
+  };
 
-  const unreadCount = notifications.filter(notification => !notification.read).length;
+  const formatTimeAgo = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+    if (diffInSeconds < 60) return 'just now';
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} minutes ago`;
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`;
+    if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)} days ago`;
+    return date.toLocaleDateString();
+  };
 
   const getIcon = (type: string) => {
     switch (type) {
@@ -94,6 +97,14 @@ const Notifications: React.FC = () => {
         return <Bell size={20} className="text-blue-500" />;
     }
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader className="animate-spin h-8 w-8 text-blue-500" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -115,22 +126,24 @@ const Notifications: React.FC = () => {
             <option value="all">All</option>
             <option value="unread">Unread</option>
           </select>
-          <button
-            onClick={markAllAsRead}
-            className="px-4 py-2 bg-white border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm transition-colors"
-          >
-            Mark all as read
-          </button>
+          {unreadCount > 0 && (
+            <button
+              onClick={markAllAsRead}
+              className="px-4 py-2 bg-white border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm transition-colors"
+            >
+              Mark all as read
+            </button>
+          )}
         </div>
       </div>
 
       <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-        {filteredNotifications.length > 0 ? (
+        {notifications.length > 0 ? (
           <div className="divide-y divide-gray-200">
-            {filteredNotifications.map(notification => (
+            {notifications.map(notification => (
               <div 
                 key={notification.id} 
-                className={`p-4 ${notification.read ? 'bg-white' : 'bg-blue-50'} hover:bg-gray-50 transition-colors duration-150`}
+                className={`p-4 ${notification.is_read ? 'bg-white' : 'bg-blue-50'} hover:bg-gray-50 transition-colors duration-150`}
               >
                 <div className="flex items-start">
                   <div className="flex-shrink-0 mr-3 mt-0.5">
@@ -138,15 +151,15 @@ const Notifications: React.FC = () => {
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center justify-between">
-                      <h3 className={`text-sm font-medium ${notification.read ? 'text-gray-800' : 'text-blue-800'}`}>
+                      <h3 className={`text-sm font-medium ${notification.is_read ? 'text-gray-800' : 'text-blue-800'}`}>
                         {notification.title}
                       </h3>
                       <div className="flex items-center space-x-2">
                         <span className="text-xs text-gray-500 flex items-center">
                           <Clock size={12} className="mr-1" />
-                          {notification.time}
+                          {formatTimeAgo(notification.created_at)}
                         </span>
-                        {!notification.read && (
+                        {!notification.is_read && (
                           <button 
                             onClick={() => markAsRead(notification.id)}
                             className="text-blue-600 hover:text-blue-800 transition-colors duration-150"
@@ -174,6 +187,7 @@ const Notifications: React.FC = () => {
           </div>
         ) : (
           <div className="p-8 text-center">
+            <Bell size={48} className="mx-auto text-gray-400 mb-4" />
             <p className="text-gray-500">No notifications found.</p>
           </div>
         )}
