@@ -1,8 +1,5 @@
-// api.ts
-
 // Use import.meta.env for client-side environment variables in a Vite project
-  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 interface ApiResponse<T = any> {
   success: boolean;
@@ -23,6 +20,7 @@ class ApiService {
     endpoint: string,
     options: RequestInit = {}
   ): Promise<ApiResponse<T>> {
+    // The endpoint should start with /api/
     const url = `${API_BASE_URL}${endpoint}`;
 
     const config: RequestInit = {
@@ -74,7 +72,7 @@ class ApiService {
       email: string;
       token: string;
       is_admin: boolean;
-    }>('/auth/register', {
+    }>('/api/auth/register', {
       method: 'POST',
       body: JSON.stringify(userData),
     });
@@ -100,7 +98,7 @@ class ApiService {
       interests?: string[];
       is_admin: boolean;
       token: string;
-    }>('/auth/login', {
+    }>('/api/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     });
@@ -125,7 +123,7 @@ class ApiService {
       contact_times?: string[];
       interests?: string[];
       is_admin: boolean;
-    }>('/auth/me');
+    }>('/api/auth/me');
   }
 
   async updateProfile(updates: {
@@ -136,7 +134,7 @@ class ApiService {
     contact_times?: string[];
     interests?: string[];
   }) {
-    return this.request('/auth/profile', {
+    return this.request('/api/auth/profile', {
       method: 'PUT',
       body: JSON.stringify(updates),
     });
@@ -169,11 +167,11 @@ class ApiService {
       is_available: boolean;
       tags: string[];
       created_at: string;
-    }>>(`/books?${queryString}`);
+    }>>(`/api/books?${queryString}`);
   }
 
   async getBook(id: number) {
-    return this.request(`/books/${id}`);
+    return this.request(`/api/books/${id}`);
   }
 
   async createBook(bookData: {
@@ -187,21 +185,21 @@ class ApiService {
     cover_url?: string;
     tags?: string[];
   }) {
-    return this.request<{ id: number }>('/books', {
+    return this.request<{ id: number }>('/api/books', {
       method: 'POST',
       body: JSON.stringify(bookData),
     });
   }
 
   async updateBook(id: number, bookData: any) {
-    return this.request(`/books/${id}`, {
+    return this.request(`/api/books/${id}`, {
       method: 'PUT',
       body: JSON.stringify(bookData),
     });
   }
 
   async deleteBook(id: number) {
-    return this.request(`/books/${id}`, {
+    return this.request(`/api/books/${id}`, {
       method: 'DELETE',
     });
   }
@@ -229,11 +227,11 @@ class ApiService {
       categories: string[];
       components: string[];
       created_at: string;
-    }>>(`/boardgames?${queryString}`);
+    }>>(`/api/boardgames?${queryString}`);
   }
 
   async getBoardGame(id: number) {
-    return this.request(`/boardgames/${id}`);
+    return this.request(`/api/boardgames/${id}`);
   }
 
   async createBoardGame(gameData: {
@@ -248,21 +246,21 @@ class ApiService {
     categories?: string[];
     components?: string[];
   }) {
-    return this.request<{ id: number }>('/boardgames', {
+    return this.request<{ id: number }>('/api/boardgames', {
       method: 'POST',
       body: JSON.stringify(gameData),
     });
   }
 
   async updateBoardGame(id: number, gameData: any) {
-    return this.request(`/boardgames/${id}`, {
+    return this.request(`/api/boardgames/${id}`, {
       method: 'PUT',
       body: JSON.stringify(gameData),
     });
   }
 
   async deleteBoardGame(id: number) {
-    return this.request(`/boardgames/${id}`, {
+    return this.request(`/api/boardgames/${id}`, {
       method: 'DELETE',
     });
   }
@@ -291,7 +289,7 @@ class ApiService {
       pickup_date: string;
       return_date: string;
       notes?: string;
-    }>>(`/requests?${queryString}`);
+    }>>(`/api/requests?${queryString}`);
   }
 
   async createRequest(requestData: {
@@ -301,26 +299,26 @@ class ApiService {
     return_date: string;
     notes?: string;
   }) {
-    return this.request<{ id: number }>('/requests', {
+    return this.request<{ id: number }>('/api/requests', {
       method: 'POST',
       body: JSON.stringify(requestData),
     });
   }
 
   async approveRequest(requestId: number) {
-    return this.request(`/requests/${requestId}/approve`, {
+    return this.request(`/api/requests/${requestId}/approve`, {
       method: 'PUT',
     });
   }
 
   async rejectRequest(requestId: number) {
-    return this.request(`/requests/${requestId}/reject`, {
+    return this.request(`/api/requests/${requestId}/reject`, {
       method: 'PUT',
     });
   }
 
   async returnItem(requestId: number) {
-    return this.request(`/requests/${requestId}/return`, {
+    return this.request(`/api/requests/${requestId}/return`, {
       method: 'PUT',
     });
   }
@@ -335,17 +333,17 @@ class ApiService {
       type: string;
       is_read: boolean;
       created_at: string;
-    }>>('/notifications');
+    }>>('/api/notifications');
   }
 
   async markNotificationRead(notificationId: number) {
-    return this.request(`/notifications/${notificationId}/read`, {
+    return this.request(`/api/notifications/${notificationId}/read`, {
       method: 'PUT',
     });
   }
 
   async markAllNotificationsRead() {
-    return this.request('/notifications/read-all', {
+    return this.request('/api/notifications/read-all', {
       method: 'PUT',
     });
   }
@@ -367,7 +365,7 @@ class ApiService {
         item_id: number;
         created_at: string;
       }>;
-    }>('/admin/stats');
+    }>('/api/admin/stats');
   }
 
   async getUsers() {
@@ -379,14 +377,14 @@ class ApiService {
       is_admin: boolean;
       is_active: boolean;
       created_at: string;
-    }>>('/admin/users');
+    }>>('/api/admin/users');
   }
 
   async updateUser(userId: number, updates: {
     is_admin?: boolean;
     is_active?: boolean;
   }) {
-    return this.request(`/admin/users/${userId}`, {
+    return this.request(`/api/admin/users/${userId}`, {
       method: 'PUT',
       body: JSON.stringify(updates),
     });
@@ -409,7 +407,7 @@ class ApiService {
         owner_name: string;
         is_available: boolean;
       }>;
-    }>(`/search?q=${encodeURIComponent(query)}`);
+    }>(`/api/search?q=${encodeURIComponent(query)}`);
   }
 
   // Activity log
@@ -427,7 +425,7 @@ class ApiService {
       item_id: number;
       details?: any;
       created_at: string;
-    }>>(`/activity?${queryString}`);
+    }>>(`/api/activity?${queryString}`);
   }
 
   // File upload helper
@@ -436,7 +434,7 @@ class ApiService {
     formData.append('file', file);
     formData.append('type', type);
 
-    const response = await fetch(`${API_BASE_URL}/upload`, {
+    const response = await fetch(`${API_BASE_URL}/api/upload`, {
       method: 'POST',
       headers: {
         ...(this.token && { Authorization: `Bearer ${this.token}` }),

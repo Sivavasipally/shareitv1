@@ -1,14 +1,14 @@
 from fastapi import APIRouter, HTTPException, Depends, status, Query
 from pydantic import BaseModel
 from typing import Optional, List
-from datetime import datetime, timedelta # Ensure datetime is imported
+from datetime import datetime, timedelta
 import json
 import os
 
 from database import execute_query, execute_one
 from utils.jwt_handler import get_current_user, require_admin
 
-router = APIRouter(prefix="/admin", tags=["admin"])
+router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 
 class UserUpdate(BaseModel):
@@ -71,67 +71,62 @@ async def get_admin_stats(current_user: dict = Depends(require_admin)):
 
     stats['users']['new_this_week'] = new_users_count
 
-    @router.get("/stats")
-    async def get_admin_stats(current_user: dict = Depends(require_admin)):
-        # ... (stats queries remain the same) ...
+    # Recent activities
+    recent_activities = execute_query(
+        """SELECT al.*, u.username 
+           FROM activity_log al 
+           JOIN users u ON al.user_id = u.id 
+           ORDER BY al.created_at DESC 
+           LIMIT 20""",
+        fetch=True
+    )
 
-        # Recent activities
-        recent_activities = execute_query(
-            """SELECT al.*, u.username 
-               FROM activity_log al 
-               JOIN users u ON al.user_id = u.id 
-               ORDER BY al.created_at DESC 
-               LIMIT 20""",
-            fetch=True
-        )
+    # Format dates and details
+    for activity in recent_activities:
+        created_at_val = activity.get('created_at')
+        # Check if the value is a datetime object before formatting
+        if isinstance(created_at_val, datetime):
+            activity['created_at'] = created_at_val.isoformat()
 
-        # Format dates
-        for activity in recent_activities:
-            created_at_val = activity.get('created_at')
-            # Check if the value is a datetime object before formatting
-            if isinstance(created_at_val, datetime):
-                activity['created_at'] = created_at_val.isoformat()
+        if activity.get('details'):
+            try:
+                # Safely load JSON details
+                activity['details'] = json.loads(activity['details'])
+            except (json.JSONDecodeError, TypeError):
+                # If it's not valid JSON or not a string, keep the original value
+                pass
 
-            # This handles cases where created_at is None or already a string
-            if activity.get('details'):
-                try:
-                    activity['details'] = json.loads(activity['details'])
-                except (json.JSONDecodeError, TypeError):
-                    # Keep original value if it's not valid JSON
-                    pass
+    stats['recent_activities'] = recent_activities
 
-        stats['recent_activities'] = recent_activities
+    # Top users
+    top_lenders = execute_query(
+        """SELECT u.id, u.username, COUNT(r.id) as loans_count
+           FROM users u
+           JOIN requests r ON u.id = r.owner_id
+           WHERE r.status IN ('approved', 'returned')
+           GROUP BY u.id, u.username
+           ORDER BY loans_count DESC
+           LIMIT 5""",
+        fetch=True
+    )
 
+    top_borrowers = execute_query(
+        """SELECT u.id, u.username, COUNT(r.id) as borrows_count
+           FROM users u
+           JOIN requests r ON u.id = r.requester_id
+           WHERE r.status IN ('approved', 'returned')
+           GROUP BY u.id, u.username
+           ORDER BY borrows_count DESC
+           LIMIT 5""",
+        fetch=True
+    )
 
-        # Top users
-        top_lenders = execute_query(
-            """SELECT u.id, u.username, COUNT(r.id) as loans_count
-               FROM users u
-               JOIN requests r ON u.id = r.owner_id
-               WHERE r.status IN ('approved', 'returned')
-               GROUP BY u.id, u.username
-               ORDER BY loans_count DESC
-               LIMIT 5""",
-            fetch=True
-        )
+    stats['top_users'] = {
+        'lenders': top_lenders,
+        'borrowers': top_borrowers
+    }
 
-        top_borrowers = execute_query(
-            """SELECT u.id, u.username, COUNT(r.id) as borrows_count
-               FROM users u
-               JOIN requests r ON u.id = r.requester_id
-               WHERE r.status IN ('approved', 'returned')
-               GROUP BY u.id, u.username
-               ORDER BY borrows_count DESC
-               LIMIT 5""",
-            fetch=True
-        )
-
-        stats['top_users'] = {
-            'lenders': top_lenders,
-            'borrowers': top_borrowers
-        }
-
-        return {"success": True, "data": stats}
+    return {"success": True, "data": stats}
 
 
 @router.get("/users")
@@ -214,8 +209,10 @@ async def get_users(
 
     # Format dates and remove count
     for user in users:
-        user['created_at'] = user['created_at'].isoformat() if user['created_at'] else None
-        user['updated_at'] = user['updated_at'].isoformat() if user['updated_at'] else None
+        user['created_at'] = user['created_at'].isoformat() if isinstance(user['created_at'], datetime) else user[
+            'created_at']
+        user['updated_at'] = user['updated_at'].isoformat() if isinstance(user['updated_at'], datetime) else user[
+            'updated_at']
         user.pop('total_count', None)
 
     return {
@@ -282,7 +279,8 @@ async def get_user_details(
     )
 
     for activity in recent_activity:
-        activity['created_at'] = activity['created_at'].isoformat() if activity['created_at'] else None
+        activity['created_at'] = activity['created_at'].isoformat() if isinstance(activity['created_at'], datetime) else \
+        activity['created_at']
         if activity['details']:
             try:
                 activity['details'] = json.loads(activity['details'])
@@ -292,8 +290,10 @@ async def get_user_details(
     user['recent_activity'] = recent_activity
 
     # Format dates
-    user['created_at'] = user['created_at'].isoformat() if user['created_at'] else None
-    user['updated_at'] = user['updated_at'].isoformat() if user['updated_at'] else None
+    user['created_at'] = user['created_at'].isoformat() if isinstance(user['created_at'], datetime) else user[
+        'created_at']
+    user['updated_at'] = user['updated_at'].isoformat() if isinstance(user['updated_at'], datetime) else user[
+        'updated_at']
 
     # Remove password hash
     user.pop('password_hash', None)
@@ -489,7 +489,8 @@ async def get_activity_log(
 
     # Format data
     for activity in activities:
-        activity['created_at'] = activity['created_at'].isoformat() if activity['created_at'] else None
+        activity['created_at'] = activity['created_at'].isoformat() if isinstance(activity['created_at'], datetime) else \
+        activity['created_at']
         if activity['details']:
             try:
                 activity['details'] = json.loads(activity['details'])
@@ -551,7 +552,9 @@ async def get_communities(current_user: dict = Depends(require_admin)):
     )
 
     for community in communities:
-        community['created_at'] = community['created_at'].isoformat() if community['created_at'] else None
+        community['created_at'] = community['created_at'].isoformat() if isinstance(community['created_at'],
+                                                                                    datetime) else community[
+            'created_at']
 
     return {"success": True, "data": communities}
 

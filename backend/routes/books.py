@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends, status, Query
 from pydantic import BaseModel, Field
 from typing import Optional, List
 import json
+from datetime import datetime
 
 from database import execute_query, execute_one
 from utils.jwt_handler import get_current_user
@@ -86,9 +87,11 @@ async def get_books(
 
     # Parse JSON fields and format dates
     for book in books:
-        book['tags'] = json.loads(book['tags']) if book['tags'] else []
-        book['created_at'] = book['created_at'].isoformat() if book['created_at'] else None
-        book['updated_at'] = book['updated_at'].isoformat() if book['updated_at'] else None
+        book['tags'] = json.loads(book['tags']) if book.get('tags') else []
+        if isinstance(book.get('created_at'), datetime):
+            book['created_at'] = book['created_at'].isoformat()
+        if isinstance(book.get('updated_at'), datetime):
+            book['updated_at'] = book['updated_at'].isoformat()
         book.pop('total_count', None)
 
     return {
@@ -157,9 +160,11 @@ async def get_book(
     if not book:
         raise HTTPException(status_code=404, detail="Book not found")
 
-    book['tags'] = json.loads(book['tags']) if book['tags'] else []
-    book['created_at'] = book['created_at'].isoformat() if book['created_at'] else None
-    book['updated_at'] = book['updated_at'].isoformat() if book['updated_at'] else None
+    book['tags'] = json.loads(book['tags']) if book.get('tags') else []
+    if isinstance(book.get('created_at'), datetime):
+        book['created_at'] = book['created_at'].isoformat()
+    if isinstance(book.get('updated_at'), datetime):
+        book['updated_at'] = book['updated_at'].isoformat()
 
     # Hide owner contact info if book is not available and user is not the owner
     if not book['is_available'] and book['owner_id'] != current_user['id']:
@@ -326,10 +331,12 @@ async def get_my_books(
 
     books = execute_query(query, params, fetch=True)
 
-    # Parse JSON fields
+    # Parse JSON fields and format dates
     for book in books:
-        book['tags'] = json.loads(book['tags']) if book['tags'] else []
-        book['created_at'] = book['created_at'].isoformat() if book['created_at'] else None
-        book['updated_at'] = book['updated_at'].isoformat() if book['updated_at'] else None
+        book['tags'] = json.loads(book['tags']) if book.get('tags') else []
+        if isinstance(book.get('created_at'), datetime):
+            book['created_at'] = book['created_at'].isoformat()
+        if isinstance(book.get('updated_at'), datetime):
+            book['updated_at'] = book['updated_at'].isoformat()
 
     return {"success": True, "data": books}
